@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,7 +36,7 @@ const signupSchema = z
 
 type SignupFormValues = z.infer<typeof signupSchema>;
 
-export default function SignupPage() {
+function SignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get("invite");
@@ -287,5 +287,13 @@ export default function SignupPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="rounded-xl border border-border bg-card p-6 shadow-sm md:p-8 flex items-center justify-center min-h-50"><div className="size-6 animate-spin rounded-full border-2 border-muted border-t-primary" /></div>}>
+      <SignupContent />
+    </Suspense>
   );
 }

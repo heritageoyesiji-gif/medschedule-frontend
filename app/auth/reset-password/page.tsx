@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +26,7 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
@@ -144,5 +144,13 @@ export default function ResetPasswordPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="rounded-xl border border-border bg-card p-6 shadow-sm md:p-8 flex items-center justify-center min-h-50"><div className="size-6 animate-spin rounded-full border-2 border-muted border-t-primary" /></div>}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
