@@ -40,21 +40,6 @@ export function formatMonthLabel(month: string): string {
   });
 }
 
-function getShiftEndIso(
-  date: string,
-  startTime: string,
-  endTime: string,
-): string {
-  if (endTime <= startTime) {
-    const [year, month, day] = date.split("-").map(Number);
-    const nextDay = new Date(year, month - 1, day + 1);
-    const endYear = nextDay.getFullYear();
-    const endMonth = String(nextDay.getMonth() + 1).padStart(2, "0");
-    const endDay = String(nextDay.getDate()).padStart(2, "0");
-    return `${endYear}-${endMonth}-${endDay}T${endTime}`;
-  }
-  return `${date}T${endTime}`;
-}
 
 export function toCalendarEvent(shift: Shift): EventInput {
   const color = SHIFT_TYPE_COLORS[shift.type];
@@ -62,8 +47,8 @@ export function toCalendarEvent(shift: Shift): EventInput {
   return {
     id: shift.shiftId,
     title: `${getShiftTypeLabel(shift.type)} — ${shift.unit}`,
-    start: `${shift.date}T${shift.startTime}`,
-    end: getShiftEndIso(shift.date, shift.startTime, shift.endTime),
+    start: shift.date,
+    allDay: true,
     backgroundColor: color,
     borderColor: color,
     extendedProps: { shift },
