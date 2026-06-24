@@ -1,0 +1,410 @@
+{
+  "users": [
+    {
+      "userId": "usr_3c25eed5",
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "test@example.com",
+      "passwordHash": "$2b$10$RHl/PaC6FbxFJ177Lf5IYOjyyosNA9F7krZ52BbTtToofLqSZueDy",
+      "role": "admin",
+      "facilityId": "",
+      "status": "active",
+      "createdAt": "2026-06-24T00:39:24.586Z"
+    },
+    {
+      "userId": "usr_28324064",
+      "firstName": "Alice",
+      "lastName": "Admin",
+      "email": "admin@hospital.com",
+      "passwordHash": "$2b$10$SCeDfdeEyyh2Nz2EZ9itf.IxBi8VdDU4dwEf6Kh2MdivU/akVLIv2",
+      "role": "admin",
+      "facilityId": "",
+      "status": "active",
+      "createdAt": "2026-06-24T00:40:16.654Z"
+    },
+    {
+      "userId": "usr_19682185",
+      "firstName": "Alice",
+      "lastName": "Admin",
+      "email": "alice@hospital.com",
+      "passwordHash": "$2b$10$u/qj.ABDHRyA2zqM8pBHI.kQx3OhH6uHbmVL8mSX4eUzW.3bOgkiq",
+      "role": "admin",
+      "facilityId": "fac_f2cb438a",
+      "status": "active",
+      "createdAt": "2026-06-24T01:25:34.745Z"
+    },
+    {
+      "userId": "usr_80104dd9",
+      "firstName": "amara",
+      "lastName": "johnsom",
+      "email": "heritageoyesiji@primepath.com",
+      "passwordHash": "$2b$10$ArFKQ3Aqp.2KlK/1BobLIeZT3flPbh1aixP4N.p/Rk3KCYYc9b8qS",
+      "role": "admin",
+      "facilityId": "fac_094db1fa",
+      "status": "active",
+      "createdAt": "2026-06-24T03:00:10.471Z"
+    },
+    {
+      "userId": "usr_d769ec5a",
+      "firstName": "amara",
+      "lastName": "j",
+      "email": "heritageoyesiji@gmail.com",
+      "passwordHash": "$2b$10$SVssOuLrxp9KnHukKwg9Tey.APceulnwb3IbpwitO/CgoK6RIt6ZC",
+      "role": "admin",
+      "facilityId": "fac_ef4ff3c8",
+      "status": "active",
+      "createdAt": "2026-06-24T03:12:17.091Z"
+    },
+    {
+      "userId": "usr_bb3dc57d",
+      "firstName": "Amara",
+      "lastName": "Johnson",
+      "email": "kyd@gmail.com",
+      "passwordHash": "$2b$10$JshV6HPdKU8i0BcN7d8U7.57WF0z3yQkQ4NLk5G7ZhA7g6mhQx6Vm",
+      "role": "admin",
+      "facilityId": "fac_548b9088",
+      "status": "active",
+      "createdAt": "2026-06-24T07:08:58.498Z"
+    }
+  ],
+  "magicLinkTokens": [],
+  "qrLoginTokens": [],
+  "facilities": [
+    {
+      "facilityId": "fac_f2cb438a",
+      "name": "City General",
+      "address": "123 Main St",
+      "contactEmail": "info@citygeneral.com",
+      "contactPhone": "555-0100",
+      "adminUserId": "usr_19682185",
+      "createdAt": "2026-06-24T01:25:57.919Z"
+    },
+    {
+      "facilityId": "fac_094db1fa",
+      "name": "primepathunicares",
+      "address": "123  health ave",
+      "contactEmail": "heritageoyesiji@primepath.com",
+      "contactPhone": "09167521784",
+      "adminUserId": "usr_80104dd9",
+      "createdAt": "2026-06-24T03:00:48.644Z"
+    },
+    {
+      "facilityId": "fac_ef4ff3c8",
+      "name": "sunridge center",
+      "address": "133 heat",
+      "contactEmail": "heritageoyesiji@gmail.com",
+      "contactPhone": "09167521784",
+      "adminUserId": "usr_d769ec5a",
+      "createdAt": "2026-06-24T03:12:37.868Z"
+    },
+    {
+      "facilityId": "fac_548b9088",
+      "name": "Sunridg",
+      "address": "123 health street",
+      "contactEmail": "kyd@gmail.com",
+      "contactPhone": "+1234578788",
+      "adminUserId": "usr_bb3dc57d",
+      "createdAt": "2026-06-24T07:09:32.065Z"
+    }
+  ],
+  "staffProfiles": [
+    {
+      "userId": "usr_25f19c2c",
+      "facilityId": "fac_f2cb438a",
+      "firstName": "Bob",
+      "lastName": "Nurse",
+      "email": "bob@hospital.com",
+      "roleType": "RN",
+      "unit": "ICU",
+      "qualifications": [],
+      "employmentType": "full-time",
+      "availability": {
+        "monday": [
+          "day",
+          "evening"
+        ],
+        "tuesday": [
+          "day"
+        ],
+        "wednesday": [
+          "day",
+          "night"
+        ]
+      },
+      "maxHoursPerWeek": 40,
+      "status": "active"
+    },
+    {
+      "userId": "usr_554a7c7a",
+      "facilityId": "fac_094db1fa",
+      "firstName": "john",
+      "lastName": "jones",
+      "email": "johnjones@gmail.com",
+      "roleType": "doctor",
+      "unit": "ICU",
+      "qualifications": [],
+      "employmentType": "full-time",
+      "availability": {
+        "monday": [
+          "day",
+          "evening",
+          "night"
+        ],
+        "tuesday": [
+          "day",
+          "evening"
+        ],
+        "wednesday": [
+          "day",
+          "evening"
+        ],
+        "thursday": [
+          "day",
+          "evening"
+        ],
+        "friday": [
+          "day",
+          "evening"
+        ],
+        "saturday": [
+          "day",
+          "evening"
+        ],
+        "sunday": [
+          "day",
+          "evening"
+        ]
+      },
+      "maxHoursPerWeek": 40,
+      "status": "active"
+    }
+  ],
+  "shifts": [
+    {
+      "shiftId": "shf_4cf9a2c0",
+      "facilityId": "fac_f2cb438a",
+      "staffId": "usr_25f19c2c",
+      "date": "2026-07-01",
+      "type": "day",
+      "unit": "ICU",
+      "startTime": "07:00",
+      "endTime": "19:00",
+      "durationHours": 12,
+      "status": "confirmed",
+      "publishedAt": null,
+      "createdAt": "2026-06-24T01:26:48.085Z"
+    }
+  ],
+  "aiPreviews": [
+    {
+      "facilityId": "fac_f2cb438a",
+      "month": "2026-07",
+      "generatedAt": "2026-06-24T01:26:49.028Z",
+      "shifts": [
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-01",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-01",
+          "type": "night",
+          "unit": "ICU",
+          "startTime": "19:00",
+          "endTime": "07:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-06",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-06",
+          "type": "evening",
+          "unit": "ICU",
+          "startTime": "15:00",
+          "endTime": "23:00",
+          "durationHours": 8
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-07",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-08",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-08",
+          "type": "night",
+          "unit": "ICU",
+          "startTime": "19:00",
+          "endTime": "07:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-13",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-13",
+          "type": "evening",
+          "unit": "ICU",
+          "startTime": "15:00",
+          "endTime": "23:00",
+          "durationHours": 8
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-14",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-15",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-15",
+          "type": "night",
+          "unit": "ICU",
+          "startTime": "19:00",
+          "endTime": "07:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-20",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-20",
+          "type": "evening",
+          "unit": "ICU",
+          "startTime": "15:00",
+          "endTime": "23:00",
+          "durationHours": 8
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-21",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-22",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-22",
+          "type": "night",
+          "unit": "ICU",
+          "startTime": "19:00",
+          "endTime": "07:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-27",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-27",
+          "type": "evening",
+          "unit": "ICU",
+          "startTime": "15:00",
+          "endTime": "23:00",
+          "durationHours": 8
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-28",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-29",
+          "type": "day",
+          "unit": "ICU",
+          "startTime": "07:00",
+          "endTime": "19:00",
+          "durationHours": 12
+        },
+        {
+          "staffId": "usr_25f19c2c",
+          "date": "2026-07-29",
+          "type": "night",
+          "unit": "ICU",
+          "startTime": "19:00",
+          "endTime": "07:00",
+          "durationHours": 12
+        }
+      ]
+    }
+  ],
+  "swapRequests": [],
+  "timeOffRequests": [],
+  "notifications": [],
+  "announcements": [],
+  "publishedSchedules": []
+}
