@@ -317,9 +317,9 @@ export default function ScheduleBuilderPage() {
         : "Unassigned";
       return {
         id: shift.shiftId,
-        title: `${getShiftTypeLabel(shift.type)} • ${shift.unit} (${staffName})`,
-        start: `${shift.date}T${shift.startTime}`,
-        end: `${shift.date}T${shift.endTime}`,
+        title: `${getShiftTypeLabel(shift.type)} · ${staffName}`,
+        start: shift.date,
+        allDay: true,
         backgroundColor: color,
         borderColor: color,
         extendedProps: { shift },
@@ -336,12 +336,12 @@ export default function ScheduleBuilderPage() {
             : "Staff";
           return {
             id: `preview-${idx}`,
-            title: `[PREVIEW] ${s.type} • ${s.unit} (${staffName})`,
-            start: `${s.date}T${s.startTime}`,
-            end: `${s.date}T${s.endTime}`,
-            backgroundColor: "#9CA3AF", // neutral grey for preview
+            title: `[AI] ${getShiftTypeLabel(s.type)} · ${staffName}`,
+            start: s.date,
+            allDay: true,
+            backgroundColor: "#9CA3AF",
             borderColor: "#6B7280",
-            className: "fc-event-preview border-dashed opacity-80",
+            className: "opacity-75",
             extendedProps: { isPreview: true, shift: s },
           };
         });
@@ -498,163 +498,151 @@ export default function ScheduleBuilderPage() {
         </div>
       </div>
 
-      {/* Right Pane Sidebar - Gaps, Risks or AI Assistant Drawer */}
+      {/* Right Pane Sidebar - Schedule Health (always visible on desktop) */}
       <div className="hidden lg:flex w-80 shrink-0 border-l border-border bg-card flex-col h-full overflow-hidden">
-        {isAiPanelOpen ? (
-          /* AI Assistant Panel */
-          <div className="flex flex-col h-full p-4 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="font-semibold text-foreground flex items-center gap-1.5 text-sm">
-                <Brain className="size-4 text-accent" /> AI Scheduling
-              </h2>
+        <div className="flex flex-col h-full p-4 overflow-hidden">
+          <h2 className="font-semibold text-foreground text-sm border-b border-border pb-3">
+            Schedule Health
+          </h2>
+          <div className="flex-1 overflow-y-auto space-y-4 pt-3 pr-1">
+            {/* Staffing Gaps */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
+                Staffing Gaps ({gaps.length})
+              </h3>
+              <div className="space-y-2">
+                {gaps.length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
+                    No staffing gaps detected.
+                  </div>
+                ) : (
+                  gaps.map((gap, i) => (
+                    <div
+                      key={i}
+                      className="text-xs bg-amber-50/50 border border-amber-200 text-amber-900 rounded p-2.5 space-y-1"
+                    >
+                      <div className="font-semibold flex justify-between gap-2">
+                        <span>{gap.unit} — {getShiftTypeLabel(gap.type)}</span>
+                        <span className="font-mono text-[10px] text-muted-foreground">{gap.date}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{gap.message}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Overtime Risks */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
+                Overtime Risks ({risks.length})
+              </h3>
+              <div className="space-y-2">
+                {risks.length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
+                    No overtime risks detected.
+                  </div>
+                ) : (
+                  risks.map((risk, i) => (
+                    <div
+                      key={i}
+                      className="text-xs bg-red-50/50 border border-red-200 text-red-900 rounded p-2.5 space-y-1"
+                    >
+                      <div className="font-semibold flex justify-between gap-2">
+                        <span>Hours Projected: {risk.projectedHours}h</span>
+                        <span className="text-red-700">Limit: {risk.threshold}h</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">{risk.message}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Assistant Modal - works on all screen sizes */}
+      {isAiPanelOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="bg-card border border-border w-full max-w-md rounded-xl shadow-lg flex flex-col max-h-[85vh]">
+            <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
+              <h3 className="font-bold text-foreground flex items-center gap-1.5 text-sm">
+                <Brain className="size-4 text-accent" /> AI Scheduling — {formatMonthLabel(month)}
+              </h3>
               <button
-                onClick={() => {
-                  setAiPreview(null);
-                  setIsAiPanelOpen(false);
-                }}
-                className="rounded p-1 hover:bg-muted"
-                aria-label="Close panel"
+                onClick={() => { setAiPreview(null); setIsAiPanelOpen(false); }}
+                className="rounded-lg p-2 hover:bg-muted"
+                aria-label="Close"
               >
                 <X className="size-4" />
               </button>
             </div>
 
-            {/* Generate form */}
-            <div className="space-y-3 flex-1 flex flex-col justify-between overflow-y-auto">
-              <div className="space-y-4">
-                <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground leading-relaxed">
-                  Automatically builds the <span className="font-semibold text-foreground">{formatMonthLabel(month)}</span> schedule using round-robin assignment based on each staff member&apos;s availability. Preview first, then confirm to save.
-                </div>
-
-                <Button
-                  onClick={handleGenerateAI}
-                  disabled={generateAiSchedule.isPending}
-                  className="w-full text-xs gap-1.5"
-                  size="sm"
-                >
-                  <Send className="size-3.5" />
-                  {generateAiSchedule.isPending ? "Generating Preview..." : "Generate Preview"}
-                </Button>
-
-                {/* AI warnings */}
-                {aiPreview && (
-                  <div className="space-y-2.5 pt-3 border-t border-border">
-                    <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider flex items-center gap-1">
-                      <AlertTriangle className="size-3.5 text-amber-600" />
-                      AI Warnings ({aiPreview.warnings?.length || 0})
-                    </h3>
-                    <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
-                      {aiPreview.warnings?.length > 0 ? (
-                        aiPreview.warnings.map((warn, i) => (
-                          <div
-                            key={i}
-                            className="text-xs bg-amber-50/50 border border-amber-200 text-amber-900 rounded p-2.5 leading-relaxed"
-                          >
-                            {warn}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-xs text-muted-foreground italic">
-                          No schedule generation warnings.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+            <div className="flex flex-col flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground leading-relaxed">
+                Automatically builds the <span className="font-semibold text-foreground">{formatMonthLabel(month)}</span> schedule using your staffing requirements and staff availability. A preview loads on the calendar — review it, then confirm to save.
               </div>
 
-              {/* Confirm / Discard */}
+              <Button
+                onClick={handleGenerateAI}
+                disabled={generateAiSchedule.isPending}
+                className="w-full text-xs gap-1.5"
+                size="sm"
+              >
+                <Send className="size-3.5" />
+                {generateAiSchedule.isPending ? "Generating Preview…" : "Generate Preview"}
+              </Button>
+
               {aiPreview && (
-                <div className="pt-4 border-t border-border space-y-2 bg-card">
-                  <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-                    <Eye className="size-4" /> AI schedule preview is loaded.
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleConfirmAI}
-                      disabled={confirmAiSchedule.isPending}
-                      className="flex-1 text-xs bg-teal-600 hover:bg-teal-700"
-                      size="sm"
-                    >
-                      {confirmAiSchedule.isPending ? "Saving..." : "Confirm & Save"}
-                    </Button>
-                    <Button
-                      onClick={() => setAiPreview(null)}
-                      variant="outline"
-                      className="flex-1 text-xs"
-                      size="sm"
-                    >
-                      Discard
-                    </Button>
+                <div className="space-y-2.5 pt-2 border-t border-border">
+                  <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider flex items-center gap-1">
+                    <AlertTriangle className="size-3.5 text-amber-600" />
+                    Warnings ({aiPreview.warnings?.length || 0})
+                  </h4>
+                  <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
+                    {aiPreview.warnings?.length > 0 ? (
+                      aiPreview.warnings.map((warn, i) => (
+                        <div key={i} className="text-xs bg-amber-50/50 border border-amber-200 text-amber-900 rounded p-2.5 leading-relaxed">
+                          {warn}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-xs text-muted-foreground italic">No warnings.</div>
+                    )}
                   </div>
                 </div>
               )}
             </div>
-          </div>
-        ) : (
-          /* Gaps & Overtime Risks Panel */
-          <div className="flex flex-col h-full p-4 overflow-hidden">
-            <h2 className="font-semibold text-foreground text-sm border-b border-border pb-3">
-              Schedule Health
-            </h2>
-            <div className="flex-1 overflow-y-auto space-y-4 pt-3 pr-1">
-              {/* Staffing Gaps */}
-              <div>
-                <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
-                  Staffing Gaps ({gaps.length})
-                </h3>
-                <div className="space-y-2">
-                  {gaps.length === 0 ? (
-                    <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
-                      No staffing gaps detected.
-                    </div>
-                  ) : (
-                    gaps.map((gap, i) => (
-                      <div
-                        key={i}
-                        className="text-xs bg-amber-50/50 border border-amber-200 text-amber-900 rounded p-2.5 space-y-1"
-                      >
-                        <div className="font-semibold flex justify-between gap-2">
-                          <span>{gap.unit} — {getShiftTypeLabel(gap.type)}</span>
-                          <span className="font-mono text-[10px] text-muted-foreground">{gap.date}</span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">{gap.message}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
 
-              {/* Overtime Risks */}
-              <div>
-                <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
-                  Overtime Risks ({risks.length})
-                </h3>
-                <div className="space-y-2">
-                  {risks.length === 0 ? (
-                    <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
-                      No overtime risks detected.
-                    </div>
-                  ) : (
-                    risks.map((risk, i) => (
-                      <div
-                        key={i}
-                        className="text-xs bg-red-50/50 border border-red-200 text-red-900 rounded p-2.5 space-y-1"
-                      >
-                        <div className="font-semibold flex justify-between gap-2">
-                          <span>Hours Projected: {risk.projectedHours}h</span>
-                          <span className="text-red-700">Limit: {risk.threshold}h</span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">{risk.message}</p>
-                      </div>
-                    ))
-                  )}
+            {aiPreview && (
+              <div className="p-4 border-t border-border space-y-2 shrink-0">
+                <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Eye className="size-3.5" /> Preview loaded on calendar — grey shifts are AI-generated.
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleConfirmAI}
+                    disabled={confirmAiSchedule.isPending}
+                    className="flex-1 text-xs bg-teal-600 hover:bg-teal-700"
+                    size="sm"
+                  >
+                    {confirmAiSchedule.isPending ? "Saving…" : "Confirm & Save"}
+                  </Button>
+                  <Button
+                    onClick={() => setAiPreview(null)}
+                    variant="outline"
+                    className="flex-1 text-xs"
+                    size="sm"
+                  >
+                    Discard
+                  </Button>
                 </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Manual Add/Edit Modal */}
       {modalMode !== "closed" && (
