@@ -135,7 +135,7 @@ export default function ScheduleBuilderPage() {
       },
     });
     return () => draggable.destroy();
-  }, [staffList]);
+  }, [staffList, sidebarTab]);
 
   const getConfigForType = (type: ShiftType) =>
     configs.find((c) => c.shiftType === type) ?? null;
@@ -441,26 +441,8 @@ export default function ScheduleBuilderPage() {
         <div className="flex-1 rounded-xl border border-border bg-card p-4 shadow-sm min-h-125">
           {isScheduleLoading ? (
             <CalendarSkeleton />
-          ) : shifts.length === 0 && !aiPreview ? (
-            <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-              <Calendar className="mb-3 size-10 text-muted-foreground/40" />
-              <p className="font-medium text-foreground">No shifts this month</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Copy last month&apos;s schedule, use AI, or drag a worker from the Staff panel onto a date.
-              </p>
-              <Button
-                onClick={handleCopyFromLastMonth}
-                variant="outline"
-                size="sm"
-                disabled={copySchedule.isPending}
-                className="mt-4 gap-1.5 text-xs"
-              >
-                <Copy className="size-3.5" />
-                {copySchedule.isPending ? "Copying…" : `Copy from ${formatMonthLabel(shiftMonth(month, -1))}`}
-              </Button>
-            </div>
           ) : (
-            <div className="shift-calendar h-full">
+            <div className="shift-calendar h-full relative">
               <FullCalendar
                 plugins={[dayGridPlugin, interactionPlugin]}
                 initialView="dayGridMonth"
@@ -477,6 +459,27 @@ export default function ScheduleBuilderPage() {
                 height="100%"
                 dayMaxEvents={3}
               />
+              {shifts.length === 0 && !aiPreview && (
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
+                  <Calendar className="mb-3 size-10 text-muted-foreground/40" />
+                  <p className="font-medium text-foreground">No shifts this month</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Copy last month&apos;s schedule, use AI, or drag a worker from the Staff panel onto a date.
+                  </p>
+                  <div className="pointer-events-auto mt-4">
+                    <Button
+                      onClick={handleCopyFromLastMonth}
+                      variant="outline"
+                      size="sm"
+                      disabled={copySchedule.isPending}
+                      className="gap-1.5 text-xs"
+                    >
+                      <Copy className="size-3.5" />
+                      {copySchedule.isPending ? "Copying…" : `Copy from ${formatMonthLabel(shiftMonth(month, -1))}`}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
