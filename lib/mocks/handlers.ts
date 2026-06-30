@@ -452,6 +452,29 @@ export const handlers = [
     );
   }),
 
+  // ── My Facilities (location picker) ────────────────────────────────────────
+
+  http.get(`${BASE}/facilities/mine`, ({ request }) => {
+    const role = tokenUser(request);
+    if (role !== "admin") return fail("FORBIDDEN", "Admins only", 403);
+    return ok({
+      facilities: [
+        {
+          facilityId: "fac_001",
+          name: "Sunridge Manor",
+          address: "123 Sunridge Blvd, Calgary, AB T1Y 0A1",
+          createdAt: "2025-01-15T10:00:00.000Z",
+        },
+        {
+          facilityId: "fac_002",
+          name: "Pinecrest Lodge",
+          address: "456 Pinecrest Ave, Red Deer, AB T4N 2H3",
+          createdAt: "2025-03-20T10:00:00.000Z",
+        },
+      ],
+    });
+  }),
+
   // ── Staff Profiles ─────────────────────────────────────────────────────────
 
   http.get(`${BASE}/facilities/:facilityId/staff`, () =>

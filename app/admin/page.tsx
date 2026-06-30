@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAnnouncements, useCreateAnnouncement } from "@/hooks/useAnnouncements";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { useFacilitySchedule } from "@/hooks/useAdminSchedule";
 import { useSwapRequests, useTimeOffRequests } from "@/hooks/useRequests";
 import { useFacilityStaff } from "@/hooks/useStaff";
@@ -35,7 +36,7 @@ type AnnouncementFormValues = z.infer<typeof announcementSchema>;
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const facilityId = user?.facilityId ?? null;
+  const facilityId = useActiveFacilityId();
   const currentMonth = getCurrentMonth();
 
   const [isNewAnnouncementOpen, setIsNewAnnouncementOpen] = useState(false);

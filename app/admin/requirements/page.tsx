@@ -5,6 +5,7 @@ import { Save } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { useFacilityStaff } from "@/hooks/useStaff";
 import { useRequirements, useReplaceRequirements } from "@/hooks/useRequirements";
 import { getApiErrorMessage } from "@/lib/apiError";
@@ -71,7 +72,7 @@ function PageSkeleton() {
 
 export default function RequirementsPage() {
   const { user } = useAuth();
-  const facilityId = user?.facilityId ?? null;
+  const facilityId = useActiveFacilityId();
 
   const { data: staffData, isLoading: isStaffLoading } = useFacilityStaff(facilityId);
   const { data: requirementsData, isLoading: isReqLoading } = useRequirements(facilityId);

@@ -128,6 +128,17 @@ export type CreateFacilityResponse = {
   createdAt: string;
 };
 
+export type FacilitySummary = {
+  facilityId: string;
+  name: string;
+  address: string;
+  createdAt: string;
+};
+
+export type MyFacilitiesResponse = {
+  facilities: FacilitySummary[];
+};
+
 export type Facility = CreateFacilityResponse & {
   address: string;
   contactEmail: string;

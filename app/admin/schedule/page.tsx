@@ -38,6 +38,7 @@ import {
 } from "@/hooks/useAdminSchedule";
 import { useShiftConfig } from "@/hooks/useShiftConfig";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { useFacilityStaff } from "@/hooks/useStaff";
 import { getApiErrorMessage } from "@/lib/apiError";
 import {
@@ -74,7 +75,7 @@ function CalendarSkeleton() {
 
 export default function ScheduleBuilderPage() {
   const { user } = useAuth();
-  const facilityId = user?.facilityId ?? null;
+  const facilityId = useActiveFacilityId();
 
   const [month, setMonth] = useState(getCurrentMonth);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");

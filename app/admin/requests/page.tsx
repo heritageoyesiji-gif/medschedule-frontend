@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { getRoleLabel } from "@/lib/roles";
 import {
   useRespondToSwapRequest,
@@ -30,7 +31,7 @@ type TabType = "time-off" | "swaps";
 
 export default function RequestManagementPage() {
   const { user } = useAuth();
-  const facilityId = user?.facilityId ?? null;
+  const facilityId = useActiveFacilityId();
 
   // State
   const [activeTab, setActiveTab] = useState<TabType>("time-off");

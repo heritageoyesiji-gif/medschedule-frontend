@@ -17,6 +17,11 @@ import {
 } from "lucide-react";
 import { NotificationBell } from "@/components/shared/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  clearStoredFacilityId,
+  getStoredFacilityId,
+  useMyFacilities,
+} from "@/hooks/useActiveFacility";
 import { setAuthToken } from "@/lib/authToken";
 
 function AdminLayoutSkeleton() {
@@ -70,33 +75,40 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, role, isLoading } = useAuth();
+  const { data: myFacilities, isLoading: isFacilitiesLoading } = useMyFacilities();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   const isOnboardingRoute = pathname === "/admin/onboarding";
-  const hasFacility = Boolean(user?.facilityId);
+  const isSelectLocationRoute = pathname === "/admin/select-location";
+
+  const activeFacilityId = getStoredFacilityId() ?? user?.facilityId ?? null;
+  const activeFacility = myFacilities?.find((f) => f.facilityId === activeFacilityId);
+  const hasMultipleFacilities = (myFacilities?.length ?? 0) > 1;
 
   useEffect(() => {
-    if (isLoading) {
+    if (isLoading || isFacilitiesLoading) return;
+    if (!user) { router.replace("/auth/login"); return; }
+    if (role !== "admin") { router.replace("/dashboard"); return; }
+
+    const hasFacilityInDb = Boolean(user.facilityId);
+    if (!hasFacilityInDb && !isOnboardingRoute) { router.replace("/admin/onboarding"); return; }
+    if (hasFacilityInDb && isOnboardingRoute) { router.replace("/admin"); return; }
+
+    // Multi-facility: force picker if no active selection stored
+    if (hasFacilityInDb && hasMultipleFacilities && !getStoredFacilityId() && !isSelectLocationRoute) {
+      router.replace("/admin/select-location");
       return;
     }
-    if (!user) {
-      router.replace("/auth/login");
-      return;
-    }
-    if (role !== "admin") {
-      router.replace("/dashboard");
-      return;
-    }
-    if (!user.facilityId && !isOnboardingRoute) {
-      router.replace("/admin/onboarding");
-      return;
-    }
-    if (user.facilityId && isOnboardingRoute) {
+    if (hasFacilityInDb && isSelectLocationRoute && !hasMultipleFacilities) {
       router.replace("/admin");
     }
-  }, [user, role, isLoading, isOnboardingRoute, router]);
+  }, [user, role, isLoading, isFacilitiesLoading, isOnboardingRoute, isSelectLocationRoute, hasMultipleFacilities, router]);
+
+  const hasFacility = Boolean(user?.facilityId);
 
   if (
     isLoading ||
+    isFacilitiesLoading ||
     !user ||
     role !== "admin" ||
     (!hasFacility && !isOnboardingRoute) ||
@@ -106,8 +118,14 @@ export default function AdminLayout({
   }
 
   const handleSignOut = () => {
+    clearStoredFacilityId();
     setAuthToken(null);
     router.push("/auth/login");
+  };
+
+  const handleSwitchLocation = () => {
+    clearStoredFacilityId();
+    router.push("/admin/select-location");
   };
 
   const navLinks = [
@@ -174,8 +192,24 @@ export default function AdminLayout({
             );
           })}
         </nav>
-        <div className="border-t border-border p-4">
-          <div className="mb-4 px-3 py-2">
+        <div className="border-t border-border p-4 space-y-1">
+          {activeFacility && (
+            <div className="mb-3 px-3 py-2 rounded-lg bg-accent/5 border border-accent/20">
+              <div className="flex items-center gap-2 mb-0.5">
+                <Building2 className="size-3.5 text-accent shrink-0" />
+                <p className="text-xs font-semibold text-accent truncate">{activeFacility.name}</p>
+              </div>
+              {hasMultipleFacilities && (
+                <button
+                  onClick={handleSwitchLocation}
+                  className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+                >
+                  Switch location
+                </button>
+              )}
+            </div>
+          )}
+          <div className="px-3 py-2">
             <p className="text-sm font-medium text-foreground truncate">
               {user.firstName} {user.lastName}
             </p>
@@ -208,10 +242,20 @@ export default function AdminLayout({
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden text-sm text-muted-foreground md:block">
-              Facility ID:{" "}
-              <span className="font-mono font-medium">{user.facilityId}</span>
-            </div>
+            {activeFacility && (
+              <div className="hidden items-center gap-1.5 text-sm text-muted-foreground md:flex">
+                <Building2 className="size-3.5 text-accent" />
+                <span className="font-medium text-foreground">{activeFacility.name}</span>
+                {hasMultipleFacilities && (
+                  <button
+                    onClick={handleSwitchLocation}
+                    className="ml-1 text-xs text-accent hover:underline"
+                  >
+                    Switch
+                  </button>
+                )}
+              </div>
+            )}
             <NotificationBell userId={user.userId} />
           </div>
         </header>
@@ -255,8 +299,24 @@ export default function AdminLayout({
                 );
               })}
             </nav>
-            <div className="border-t border-border pt-4">
-              <div className="mb-4 px-3">
+            <div className="border-t border-border pt-4 space-y-1">
+              {activeFacility && (
+                <div className="mb-2 px-3 py-2 rounded-lg bg-accent/5 border border-accent/20">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="size-3.5 text-accent shrink-0" />
+                    <p className="text-xs font-semibold text-accent truncate">{activeFacility.name}</p>
+                  </div>
+                  {hasMultipleFacilities && (
+                    <button
+                      onClick={() => { setIsMobileMenuOpen(false); handleSwitchLocation(); }}
+                      className="mt-0.5 text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                    >
+                      Switch location
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="px-3">
                 <p className="text-sm font-medium text-foreground truncate">
                   {user.firstName} {user.lastName}
                 </p>

@@ -28,6 +28,7 @@ import {
 } from "@/hooks/useStaff";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { getEmploymentLabel, getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
+import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import type {
   EmploymentType,
   ShiftType,
@@ -70,7 +71,7 @@ type StaffFormValues = z.infer<typeof staffFormSchema>;
 
 export default function StaffManagementPage() {
   const { user } = useAuth();
-  const facilityId = user?.facilityId ?? null;
+  const facilityId = useActiveFacilityId();
 
   // State
   const [searchTerm, setSearchTerm] = useState("");

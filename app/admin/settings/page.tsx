@@ -12,6 +12,7 @@ import {
   useUpdateShiftTypeConfig,
 } from "@/hooks/useShiftConfig";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { getApiErrorMessage } from "@/lib/apiError";
 import type { ShiftTypeConfig } from "@/types/api";
 import { SHIFT_TYPE_COLORS } from "@/lib/schedule";
@@ -156,7 +157,7 @@ function ShiftTypeRow({
 
 export default function AdminSettingsPage() {
   const { user } = useAuth();
-  const facilityId = user?.facilityId ?? null;
+  const facilityId = useActiveFacilityId();
 
   const { data: configs, isLoading } = useShiftConfig(facilityId);
 
