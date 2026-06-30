@@ -117,7 +117,7 @@
       "roleType": "RN",
       "unit": "ICU",
       "qualifications": [],
-      "employmentType": "full-time",
+      "employmentType": "fulltime-permanent",
       "availability": {
         "monday": [
           "day",
@@ -143,7 +143,7 @@
       "roleType": "doctor",
       "unit": "ICU",
       "qualifications": [],
-      "employmentType": "full-time",
+      "employmentType": "fulltime-permanent",
       "availability": {
         "monday": [
           "day",
@@ -177,6 +177,96 @@
       },
       "maxHoursPerWeek": 40,
       "status": "active"
+    },
+    {
+      "userId": "usr_02a193fb",
+      "facilityId": "fac_ef4ff3c8",
+      "firstName": "israel",
+      "lastName": "abioye",
+      "email": "abioyeisrael@gmail.com",
+      "roleType": "RN",
+      "unit": "ICU",
+      "qualifications": [
+        "acls"
+      ],
+      "employmentType": "fulltime-permanent",
+      "availability": {
+        "monday": [
+          "day",
+          "evening"
+        ],
+        "tuesday": [
+          "day",
+          "evening"
+        ],
+        "wednesday": [
+          "day",
+          "evening"
+        ],
+        "thursday": [
+          "day",
+          "evening"
+        ],
+        "friday": [
+          "day",
+          "evening"
+        ],
+        "saturday": [
+          "day",
+          "evening"
+        ],
+        "sunday": [
+          "day",
+          "evening"
+        ]
+      },
+      "maxHoursPerWeek": 40,
+      "status": "active"
+    },
+    {
+      "userId": "usr_553c188d",
+      "facilityId": "fac_ef4ff3c8",
+      "firstName": "qudus",
+      "lastName": "ajagunna",
+      "email": "qaajagunna@gmail.com",
+      "roleType": "doctor",
+      "unit": "NICU",
+      "qualifications": [],
+      "employmentType": "fulltime-permanent",
+      "availability": {
+        "monday": [
+          "day",
+          "evening"
+        ],
+        "tuesday": [
+          "day",
+          "evening"
+        ],
+        "wednesday": [
+          "day",
+          "evening"
+        ],
+        "thursday": [
+          "day",
+          "evening",
+          "night"
+        ],
+        "friday": [
+          "day",
+          "evening",
+          "night"
+        ],
+        "saturday": [
+          "day",
+          "evening"
+        ],
+        "sunday": [
+          "day",
+          "evening"
+        ]
+      },
+      "maxHoursPerWeek": 40,
+      "status": "active"
     }
   ],
   "shifts": [
@@ -193,6 +283,34 @@
       "status": "confirmed",
       "publishedAt": null,
       "createdAt": "2026-06-24T01:26:48.085Z"
+    },
+    {
+      "shiftId": "shf_46344af8",
+      "facilityId": "fac_ef4ff3c8",
+      "staffId": "usr_02a193fb",
+      "date": "2026-06-01",
+      "type": "day",
+      "unit": "ICU",
+      "startTime": "07:00",
+      "endTime": "19:00",
+      "durationHours": 12,
+      "status": "confirmed",
+      "publishedAt": "2026-06-24T11:06:33.803Z",
+      "createdAt": "2026-06-24T11:06:12.120Z"
+    },
+    {
+      "shiftId": "shf_f5d50749",
+      "facilityId": "fac_ef4ff3c8",
+      "staffId": "usr_02a193fb",
+      "date": "2026-06-01",
+      "type": "evening",
+      "unit": "ICU",
+      "startTime": "15:00",
+      "endTime": "23:00",
+      "durationHours": 8,
+      "status": "confirmed",
+      "publishedAt": "2026-06-24T11:06:33.803Z",
+      "createdAt": "2026-06-24T11:06:29.998Z"
     }
   ],
   "aiPreviews": [
@@ -404,7 +522,23 @@
   ],
   "swapRequests": [],
   "timeOffRequests": [],
-  "notifications": [],
+  "notifications": [
+    {
+      "notificationId": "ntf_pub_1782299193805_0",
+      "userId": "usr_02a193fb",
+      "type": "schedule_published",
+      "title": "2026-06 Schedule Published",
+      "message": "Your schedule for 2026-06 is now available.",
+      "read": false,
+      "createdAt": "2026-06-24T11:06:33.807Z"
+    }
+  ],
   "announcements": [],
-  "publishedSchedules": []
+  "publishedSchedules": [
+    {
+      "facilityId": "fac_ef4ff3c8",
+      "month": "2026-06",
+      "publishedAt": "2026-06-24T11:06:33.803Z"
+    }
+  ]
 }

@@ -85,7 +85,7 @@ const STAFF_PROFILES: StaffProfile[] = [
     roleType: "RN",
     unit: "ICU",
     qualifications: ["Critical Care", "ACLS"],
-    employmentType: "full-time",
+    employmentType: "fulltime-permanent",
     availability: {
       monday: ["day", "evening"],
       tuesday: ["day", "evening"],
@@ -106,7 +106,7 @@ const STAFF_PROFILES: StaffProfile[] = [
     roleType: "PSW",
     unit: "Emergency",
     qualifications: ["First Aid", "CPR"],
-    employmentType: "full-time",
+    employmentType: "fulltime-permanent",
     availability: {
       monday: ["day", "evening", "night"],
       tuesday: ["day", "evening", "night"],
@@ -127,7 +127,7 @@ const STAFF_PROFILES: StaffProfile[] = [
     roleType: "LPN",
     unit: "General Ward",
     qualifications: ["Wound Care", "IV Therapy"],
-    employmentType: "part-time",
+    employmentType: "parttime-permanent",
     availability: {
       monday: ["evening"],
       tuesday: ["evening"],
@@ -148,7 +148,7 @@ const STAFF_PROFILES: StaffProfile[] = [
     roleType: "RN",
     unit: "ICU",
     qualifications: ["Critical Care", "ACLS", "PALS"],
-    employmentType: "full-time",
+    employmentType: "fulltime-permanent",
     availability: {
       monday: ["day", "evening", "night"],
       tuesday: ["day", "evening", "night"],
@@ -169,7 +169,7 @@ const STAFF_PROFILES: StaffProfile[] = [
     roleType: "doctor",
     unit: "Emergency",
     qualifications: ["Emergency Medicine", "Trauma"],
-    employmentType: "contract",
+    employmentType: "casual",
     availability: {
       monday: ["day"],
       tuesday: ["day"],
@@ -190,7 +190,7 @@ const STAFF_PROFILES: StaffProfile[] = [
     roleType: "technician",
     unit: "Lab",
     qualifications: ["Phlebotomy", "Lab Analysis"],
-    employmentType: "part-time",
+    employmentType: "parttime-temporary",
     availability: {
       monday: ["night"],
       tuesday: ["night"],
@@ -468,7 +468,7 @@ export const handlers = [
       roleType: body.roleType ?? "RN",
       unit: body.unit ?? "General Ward",
       qualifications: body.qualifications ?? [],
-      employmentType: body.employmentType ?? "full-time",
+      employmentType: body.employmentType ?? "fulltime-permanent",
       availability: body.availability ?? {},
       maxHoursPerWeek: body.maxHoursPerWeek ?? 40,
       status: "active",

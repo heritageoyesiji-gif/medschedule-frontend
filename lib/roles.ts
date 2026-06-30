@@ -1,4 +1,16 @@
-import type { StaffRoleType } from "@/types/api";
+import type { EmploymentType, StaffRoleType } from "@/types/api";
+
+export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
+  "fulltime-permanent":  "Full-time Permanent",
+  "fulltime-temporary":  "Full-time Temporary",
+  "parttime-permanent":  "Part-time Permanent",
+  "parttime-temporary":  "Part-time Temporary",
+  "casual":              "Casual",
+};
+
+export function getEmploymentLabel(type: EmploymentType | string): string {
+  return (EMPLOYMENT_TYPE_LABELS as Record<string, string>)[type] ?? type;
+}
 
 export const ROLE_TYPE_LABELS: Record<StaffRoleType, string> = {
   RN:          "RN",

@@ -27,7 +27,7 @@ import {
   useUpdateStaff,
 } from "@/hooks/useStaff";
 import { getApiErrorMessage } from "@/lib/apiError";
-import { getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
+import { getEmploymentLabel, getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
 import type {
   EmploymentType,
   ShiftType,
@@ -54,7 +54,7 @@ const staffFormSchema = z.object({
   email: z.string().email("Enter a valid email address"),
   roleType: z.enum(["RN", "PSW", "LPN", "LTCA", "doctor", "technician"]),
   unit: z.string().min(1, "Unit is required"),
-  employmentType: z.enum(["full-time", "part-time", "contract"]),
+  employmentType: z.enum(["fulltime-permanent", "fulltime-temporary", "parttime-permanent", "parttime-temporary", "casual"]),
   maxHoursPerWeek: z
     .number()
     .min(1, "Must be at least 1 hour")
@@ -105,7 +105,7 @@ export default function StaffManagementPage() {
       email: "",
       roleType: "RN",
       unit: "ICU",
-      employmentType: "full-time",
+      employmentType: "fulltime-permanent",
       maxHoursPerWeek: 40,
       qualifications: "",
       availability: DAYS_OF_WEEK.reduce(
@@ -125,7 +125,7 @@ export default function StaffManagementPage() {
       email: "",
       roleType: "RN",
       unit: "ICU",
-      employmentType: "full-time",
+      employmentType: "fulltime-permanent",
       maxHoursPerWeek: 40,
       qualifications: "",
       availability: DAYS_OF_WEEK.reduce(
@@ -388,7 +388,7 @@ export default function StaffManagementPage() {
                     })()}
                     <span className="text-xs text-muted-foreground">{staff.unit}</span>
                     <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">{staff.employmentType}</span>
+                    <span className="text-xs text-muted-foreground">{getEmploymentLabel(staff.employmentType)}</span>
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground font-mono">
@@ -438,7 +438,7 @@ export default function StaffManagementPage() {
                       </span>
                     );
                   })()}
-                  <span className="text-muted-foreground text-xs">({selectedStaff.employmentType})</span>
+                  <span className="text-muted-foreground text-xs">({getEmploymentLabel(selectedStaff.employmentType)})</span>
                 </span>
               </div>
               <div className="flex items-center gap-2.5 text-muted-foreground">
@@ -716,9 +716,11 @@ export default function StaffManagementPage() {
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 outline-none focus-visible:border-accent"
                     {...register("employmentType")}
                   >
-                    <option value="full-time">Full-time</option>
-                    <option value="part-time">Part-time</option>
-                    <option value="contract">Contract</option>
+                    <option value="fulltime-permanent">Full-time Permanent</option>
+                    <option value="fulltime-temporary">Full-time Temporary</option>
+                    <option value="parttime-permanent">Part-time Permanent</option>
+                    <option value="parttime-temporary">Part-time Temporary</option>
+                    <option value="casual">Casual</option>
                   </select>
                 </div>
               </div>
