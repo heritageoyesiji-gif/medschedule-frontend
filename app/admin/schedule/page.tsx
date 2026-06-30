@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
+import interactionPlugin, { Draggable } from "@fullcalendar/interaction";
+import type { EventReceiveArg } from "@fullcalendar/interaction";
 import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import { toast } from "sonner";
 import {
@@ -16,7 +17,9 @@ import {
   Eye,
   Plus,
   Send,
+  Settings,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,19 +36,21 @@ import {
   usePublishSchedule,
   useUpdateShift,
 } from "@/hooks/useAdminSchedule";
+import { useShiftConfig } from "@/hooks/useShiftConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { useFacilityStaff } from "@/hooks/useStaff";
 import { getApiErrorMessage } from "@/lib/apiError";
 import {
   formatMonthLabel,
   getCurrentMonth,
+  getShiftColor,
   getShiftTypeLabel,
-  SHIFT_TYPE_COLORS,
   shiftMonth,
 } from "@/lib/schedule";
-import type { Shift, ShiftType, StaffProfile } from "@/types/api";
+import type { Shift, ShiftType, ShiftTypeConfig, StaffProfile } from "@/types/api";
 
 type ModalMode = "add" | "edit" | "closed";
+type SidebarTab = "health" | "staff";
 
 function CalendarSkeleton() {
   return (
@@ -66,23 +71,16 @@ function CalendarSkeleton() {
   );
 }
 
-const DEFAULT_TIMES: Record<ShiftType, { start: string; end: string }> = {
-  day: { start: "07:00", end: "19:00" },
-  evening: { start: "15:00", end: "23:00" },
-  night: { start: "19:00", end: "07:00" },
-};
-
 export default function ScheduleBuilderPage() {
   const { user } = useAuth();
   const facilityId = user?.facilityId ?? null;
 
-  // States
   const [month, setMonth] = useState(getCurrentMonth);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("health");
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [aiPreview, setAiPreview] = useState<AIGenerateScheduleResponse | null>(null);
 
-  // Shift Modal State
   const [modalMode, setModalMode] = useState<ModalMode>("closed");
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [shiftDate, setShiftDate] = useState("");
@@ -92,15 +90,13 @@ export default function ScheduleBuilderPage() {
   const [shiftStart, setShiftStart] = useState("07:00");
   const [shiftEnd, setShiftEnd] = useState("19:00");
 
-  // Queries
-  const { data: staffData } = useFacilityStaff(facilityId);
-  const {
-    data: scheduleData,
-    isLoading: isScheduleLoading,
-    refetch: refetchSchedule,
-  } = useFacilitySchedule(facilityId, month);
+  const staffListRef = useRef<HTMLDivElement>(null);
 
-  // Mutations
+  const { data: staffData } = useFacilityStaff(facilityId);
+  const { data: scheduleData, isLoading: isScheduleLoading, refetch: refetchSchedule } =
+    useFacilitySchedule(facilityId, month);
+  const { data: shiftConfigs } = useShiftConfig(facilityId);
+
   const createShift = useCreateShift(facilityId, month);
   const updateShift = useUpdateShift(facilityId, month);
   const deleteShift = useDeleteShift(facilityId, month);
@@ -115,19 +111,45 @@ export default function ScheduleBuilderPage() {
   const risks = scheduleData?.overtimeRisks ?? [];
   const isPublished = scheduleData?.published ?? false;
 
-  // Unique units list
-  const uniqueUnits = useMemo(() => {
-    return Array.from(new Set(shifts.map((s) => s.unit)));
-  }, [shifts]);
+  const configs: ShiftTypeConfig[] = shiftConfigs ?? [];
 
-  // Handle shift click
+  const uniqueUnits = useMemo(() => Array.from(new Set(shifts.map((s) => s.unit))), [shifts]);
+
+  // Wire up FullCalendar external dragging from the staff list
+  useEffect(() => {
+    const el = staffListRef.current;
+    if (!el) return;
+    const draggable = new Draggable(el, {
+      itemSelector: "[data-staff-id]",
+      eventData(itemEl) {
+        return {
+          title: itemEl.getAttribute("data-staff-name") ?? "",
+          duration: "12:00",
+          extendedProps: {
+            staffId: itemEl.getAttribute("data-staff-id"),
+            isDragWorker: true,
+          },
+        };
+      },
+    });
+    return () => draggable.destroy();
+  }, [staffList]);
+
+  const getConfigForType = (type: ShiftType) =>
+    configs.find((c) => c.shiftType === type) ?? null;
+
+  const handleTypeChange = (type: ShiftType) => {
+    setShiftType(type);
+    const cfg = getConfigForType(type);
+    setShiftStart(cfg?.startTime ?? "07:00");
+    setShiftEnd(cfg?.endTime ?? "19:00");
+  };
+
   const handleEventClick = (info: EventClickArg) => {
-    const isTemp = info.event.extendedProps.isPreview;
-    if (isTemp) {
+    if (info.event.extendedProps.isPreview) {
       toast.info("This is an AI-generated preview shift. Confirm the schedule to save it.");
       return;
     }
-
     const shift = info.event.extendedProps.shift as Shift | undefined;
     if (shift) {
       setEditingShift(shift);
@@ -141,26 +163,18 @@ export default function ScheduleBuilderPage() {
     }
   };
 
-  // Drag and Drop update
   const handleEventDrop = async (info: EventDropArg) => {
-    const isTemp = info.event.extendedProps.isPreview;
-    if (isTemp) {
+    if (info.event.extendedProps.isPreview) {
       info.revert();
       toast.error("Cannot drag preview shifts.");
       return;
     }
-
     const shift = info.event.extendedProps.shift as Shift | undefined;
     if (!shift) return;
-
     const newDate = info.event.startStr.split("T")[0];
-
     try {
-      await updateShift.mutateAsync({
-        shiftId: shift.shiftId,
-        date: newDate,
-      });
-      toast.success("Shift updated successfully");
+      await updateShift.mutateAsync({ shiftId: shift.shiftId, date: newDate });
+      toast.success("Shift moved");
       void refetchSchedule();
     } catch (err) {
       info.revert();
@@ -168,23 +182,27 @@ export default function ScheduleBuilderPage() {
     }
   };
 
-  // Handle shift type change (auto-sets default times)
-  const handleTypeChange = (type: ShiftType) => {
-    setShiftType(type);
-    setShiftStart(DEFAULT_TIMES[type].start);
-    setShiftEnd(DEFAULT_TIMES[type].end);
+  // Worker dragged from sidebar and dropped onto a calendar date cell
+  const handleEventReceive = (info: EventReceiveArg) => {
+    if (!info.event.extendedProps.isDragWorker) return;
+    const staffId = info.event.extendedProps.staffId as string;
+    const date = info.event.startStr.slice(0, 10);
+    info.event.remove(); // remove temp event FullCalendar added
+    setShiftStaffId(staffId);
+    setShiftDate(date);
+    handleTypeChange("day");
+    setShiftUnit(staffList.find((s) => s.userId === staffId)?.unit || "ICU");
+    setEditingShift(null);
+    setModalMode("add");
   };
 
-  // Submit manual shift creation/modification
   const handleSaveShift = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!facilityId) return;
-
     if (!shiftStaffId) {
       toast.error("Please assign a staff member");
       return;
     }
-
     try {
       if (modalMode === "add") {
         await createShift.mutateAsync({
@@ -196,7 +214,7 @@ export default function ScheduleBuilderPage() {
           startTime: shiftStart,
           endTime: shiftEnd,
         });
-        toast.success("Shift created successfully");
+        toast.success("Shift created");
       } else if (modalMode === "edit" && editingShift) {
         await updateShift.mutateAsync({
           shiftId: editingShift.shiftId,
@@ -204,7 +222,7 @@ export default function ScheduleBuilderPage() {
           type: shiftType,
           staffId: shiftStaffId,
         });
-        toast.success("Shift modified successfully");
+        toast.success("Shift updated");
       }
       setModalMode("closed");
       void refetchSchedule();
@@ -213,14 +231,12 @@ export default function ScheduleBuilderPage() {
     }
   };
 
-  // Delete manual shift
   const handleDeleteShift = async () => {
     if (!editingShift) return;
-    if (!confirm("Are you sure you want to delete this shift?")) return;
-
+    if (!confirm("Delete this shift?")) return;
     try {
       await deleteShift.mutateAsync(editingShift.shiftId);
-      toast.success("Shift deleted successfully");
+      toast.success("Shift deleted");
       setModalMode("closed");
       void refetchSchedule();
     } catch (err) {
@@ -228,72 +244,47 @@ export default function ScheduleBuilderPage() {
     }
   };
 
-  // Publish Schedule
   const handlePublish = async () => {
     try {
       const res = await publishSchedule.mutateAsync(month);
-      toast.success(`Schedule published! Notified ${res.notifiedStaffCount} staff members.`);
+      toast.success(`Schedule published — ${res.notifiedStaffCount} staff notified.`);
       void refetchSchedule();
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to publish schedule"));
     }
   };
 
-  // Copy shifts from the previous month
   const handleCopyFromLastMonth = async () => {
     const sourceMonth = shiftMonth(month, -1);
-    if (
-      !confirm(
-        `Copy all shifts from ${formatMonthLabel(sourceMonth)} to ${formatMonthLabel(month)}?\n\nShifts will be copied as unpublished. Review and edit before publishing.`,
-      )
-    )
-      return;
-
+    if (!confirm(`Copy all shifts from ${formatMonthLabel(sourceMonth)} to ${formatMonthLabel(month)}?`)) return;
     try {
       const result = await copySchedule.mutateAsync({ sourceMonth, targetMonth: month });
       if (result.copiedCount === 0) {
-        toast.info(`No shifts found in ${formatMonthLabel(sourceMonth)} to copy.`);
+        toast.info(`No shifts in ${formatMonthLabel(sourceMonth)} to copy.`);
       } else {
-        const skippedNote =
-          result.skippedCount > 0
-            ? ` (${result.skippedCount} skipped — date doesn't exist in ${formatMonthLabel(month)})`
-            : "";
-        toast.success(
-          `Copied ${result.copiedCount} shift${result.copiedCount === 1 ? "" : "s"} from ${formatMonthLabel(sourceMonth)}${skippedNote}`,
-        );
+        toast.success(`Copied ${result.copiedCount} shift${result.copiedCount === 1 ? "" : "s"}${result.skippedCount > 0 ? ` (${result.skippedCount} skipped)` : ""}`);
       }
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to copy schedule"));
     }
   };
 
-  // Trigger AI generation
   const handleGenerateAI = async () => {
     if (!facilityId) return;
-
     try {
-      const res = await generateAiSchedule.mutateAsync({
-        facilityId,
-        month,
-        command: "auto",
-      });
+      const res = await generateAiSchedule.mutateAsync({ facilityId, month, command: "auto" });
       setAiPreview(res);
-      toast.success("Schedule preview loaded on the calendar");
+      toast.success("Schedule preview loaded — grey shifts are AI-generated.");
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Schedule generation failed"));
     }
   };
 
-  // Confirm AI generated schedule
   const handleConfirmAI = async () => {
     if (!facilityId) return;
-
     try {
-      const res = await confirmAiSchedule.mutateAsync({
-        facilityId,
-        month,
-      });
-      toast.success(`Schedule confirmed! Saved ${res.savedShifts} shifts.`);
+      const res = await confirmAiSchedule.mutateAsync({ facilityId, month });
+      toast.success(`Schedule confirmed — ${res.savedShifts} shifts saved.`);
       setAiPreview(null);
       setIsAiPanelOpen(false);
       void refetchSchedule();
@@ -302,22 +293,20 @@ export default function ScheduleBuilderPage() {
     }
   };
 
-  // Filter shifts based on Unit selection
   const filteredShifts = useMemo(() => {
     if (selectedUnit === "all") return shifts;
     return shifts.filter((s) => s.unit === selectedUnit);
   }, [shifts, selectedUnit]);
 
-  // Combine regular shifts and AI preview shifts into calendar events
   const calendarEvents = useMemo(() => {
     const regularEvents = filteredShifts.map((shift) => {
-      const color = SHIFT_TYPE_COLORS[shift.type];
+      const color = getShiftColor(shift.type);
       const staffName = shift.staff
         ? `${shift.staff.firstName} ${shift.staff.lastName}`
         : "Unassigned";
       return {
         id: shift.shiftId,
-        title: `${getShiftTypeLabel(shift.type)} · ${staffName}`,
+        title: `${getShiftTypeLabel(shift.type, configs)} · ${staffName}`,
         start: shift.date,
         allDay: true,
         backgroundColor: color,
@@ -326,7 +315,7 @@ export default function ScheduleBuilderPage() {
       };
     });
 
-    if (aiPreview && aiPreview.generatedShifts) {
+    if (aiPreview?.generatedShifts) {
       const previewEvents = aiPreview.generatedShifts
         .filter((s) => selectedUnit === "all" || s.unit === selectedUnit)
         .map((s, idx) => {
@@ -336,7 +325,7 @@ export default function ScheduleBuilderPage() {
             : "Staff";
           return {
             id: `preview-${idx}`,
-            title: `[AI] ${getShiftTypeLabel(s.type)} · ${staffName}`,
+            title: `[AI] ${getShiftTypeLabel(s.type, configs)} · ${staffName}`,
             start: s.date,
             allDay: true,
             backgroundColor: "#9CA3AF",
@@ -349,18 +338,21 @@ export default function ScheduleBuilderPage() {
     }
 
     return regularEvents;
-  }, [filteredShifts, aiPreview, staffList, selectedUnit]);
+  }, [filteredShifts, aiPreview, staffList, selectedUnit, configs]);
+
+  const activeStaff = useMemo(
+    () => staffList.filter((s) => s.status === "active"),
+    [staffList],
+  );
 
   return (
     <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-4rem)]">
       {/* Calendar Area */}
       <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto max-h-full min-w-0 space-y-4">
-        {/* Navigation & Header Actions */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4 bg-background">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-foreground">
-              Schedule Builder
-            </h1>
+            <h1 className="text-xl font-semibold text-foreground">Schedule Builder</h1>
             <div className="flex items-center rounded-lg border border-border bg-card p-0.5">
               <Button
                 variant="ghost"
@@ -371,9 +363,7 @@ export default function ScheduleBuilderPage() {
               >
                 <ChevronLeft className="size-4" />
               </Button>
-              <span className="text-xs font-semibold px-2">
-                {formatMonthLabel(month)}
-              </span>
+              <span className="text-xs font-semibold px-2">{formatMonthLabel(month)}</span>
               <Button
                 variant="ghost"
                 size="sm"
@@ -387,7 +377,6 @@ export default function ScheduleBuilderPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Unit filter */}
             <select
               value={selectedUnit}
               onChange={(e) => setSelectedUnit(e.target.value)}
@@ -395,26 +384,21 @@ export default function ScheduleBuilderPage() {
             >
               <option value="all">All Units</option>
               {uniqueUnits.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
+                <option key={u} value={u}>{u}</option>
               ))}
             </select>
 
-            {/* Copy from last month */}
             <Button
               onClick={handleCopyFromLastMonth}
               size="sm"
               variant="outline"
               disabled={copySchedule.isPending}
               className="gap-1.5 text-xs"
-              title={`Copy shifts from ${formatMonthLabel(shiftMonth(month, -1))}`}
             >
               <Copy className="size-3.5" />
               {copySchedule.isPending ? "Copying…" : `Copy ${formatMonthLabel(shiftMonth(month, -1))}`}
             </Button>
 
-            {/* Quick Add Shift button */}
             <Button
               onClick={() => {
                 setEditingShift(null);
@@ -431,19 +415,15 @@ export default function ScheduleBuilderPage() {
               <Plus className="size-3.5" /> Shift
             </Button>
 
-            {/* AI Scheduling Toggle */}
             <Button
               onClick={() => setIsAiPanelOpen(!isAiPanelOpen)}
               size="sm"
               variant={isAiPanelOpen ? "default" : "outline"}
-              className={`gap-1.5 text-xs ${
-                isAiPanelOpen ? "bg-accent hover:bg-accent/90" : ""
-              }`}
+              className={`gap-1.5 text-xs ${isAiPanelOpen ? "bg-accent hover:bg-accent/90" : ""}`}
             >
               <Brain className="size-3.5" /> AI Assistant
             </Button>
 
-            {/* Publish button */}
             <Button
               onClick={handlePublish}
               size="sm"
@@ -455,7 +435,7 @@ export default function ScheduleBuilderPage() {
           </div>
         </div>
 
-        {/* FullCalendar Component */}
+        {/* Calendar */}
         <div className="flex-1 rounded-xl border border-border bg-card p-4 shadow-sm min-h-125">
           {isScheduleLoading ? (
             <CalendarSkeleton />
@@ -464,7 +444,7 @@ export default function ScheduleBuilderPage() {
               <Calendar className="mb-3 size-10 text-muted-foreground/40" />
               <p className="font-medium text-foreground">No shifts this month</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Copy last month&apos;s schedule as a starting point, use the AI assistant, or add shifts manually.
+                Copy last month&apos;s schedule, use AI, or drag a worker from the Staff panel onto a date.
               </p>
               <Button
                 onClick={handleCopyFromLastMonth}
@@ -488,7 +468,9 @@ export default function ScheduleBuilderPage() {
                 events={calendarEvents}
                 eventClick={handleEventClick}
                 editable={true}
+                droppable={true}
                 eventDrop={handleEventDrop}
+                eventReceive={handleEventReceive}
                 fixedWeekCount={false}
                 height="100%"
                 dayMaxEvents={3}
@@ -498,71 +480,124 @@ export default function ScheduleBuilderPage() {
         </div>
       </div>
 
-      {/* Right Pane Sidebar - Schedule Health (always visible on desktop) */}
+      {/* Right Sidebar */}
       <div className="hidden lg:flex w-80 shrink-0 border-l border-border bg-card flex-col h-full overflow-hidden">
-        <div className="flex flex-col h-full p-4 overflow-hidden">
-          <h2 className="font-semibold text-foreground text-sm border-b border-border pb-3">
-            Schedule Health
-          </h2>
-          <div className="flex-1 overflow-y-auto space-y-4 pt-3 pr-1">
-            {/* Staffing Gaps */}
-            <div>
-              <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
-                Staffing Gaps ({gaps.length})
-              </h3>
-              <div className="space-y-2">
-                {gaps.length === 0 ? (
-                  <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
-                    No staffing gaps detected.
-                  </div>
-                ) : (
-                  gaps.map((gap, i) => (
-                    <div
-                      key={i}
-                      className="text-xs bg-amber-50/50 border border-amber-200 text-amber-900 rounded p-2.5 space-y-1"
-                    >
-                      <div className="font-semibold flex justify-between gap-2">
-                        <span>{gap.unit} — {getShiftTypeLabel(gap.type)}</span>
-                        <span className="font-mono text-[10px] text-muted-foreground">{gap.date}</span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">{gap.message}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+        {/* Tabs */}
+        <div className="flex border-b border-border shrink-0">
+          <button
+            onClick={() => setSidebarTab("health")}
+            className={`flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+              sidebarTab === "health"
+                ? "text-accent border-b-2 border-accent"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <AlertTriangle className="size-3.5" /> Schedule Health
+          </button>
+          <button
+            onClick={() => setSidebarTab("staff")}
+            className={`flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+              sidebarTab === "staff"
+                ? "text-accent border-b-2 border-accent"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Users className="size-3.5" /> Staff
+          </button>
+        </div>
 
-            {/* Overtime Risks */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {sidebarTab === "health" && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
+                  Staffing Gaps ({gaps.length})
+                </h3>
+                <div className="space-y-2">
+                  {gaps.length === 0 ? (
+                    <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
+                      No staffing gaps detected.
+                    </div>
+                  ) : (
+                    gaps.map((gap, i) => (
+                      <div key={i} className="text-xs bg-amber-50/50 border border-amber-200 text-amber-900 rounded p-2.5 space-y-1">
+                        <div className="font-semibold flex justify-between gap-2">
+                          <span>{gap.unit} — {getShiftTypeLabel(gap.type, configs)}</span>
+                          <span className="font-mono text-[10px] text-muted-foreground">{gap.date}</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">{gap.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
+                  Overtime Risks ({risks.length})
+                </h3>
+                <div className="space-y-2">
+                  {risks.length === 0 ? (
+                    <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
+                      No overtime risks detected.
+                    </div>
+                  ) : (
+                    risks.map((risk, i) => (
+                      <div key={i} className="text-xs bg-red-50/50 border border-red-200 text-red-900 rounded p-2.5 space-y-1">
+                        <div className="font-semibold flex justify-between gap-2">
+                          <span>Projected: {risk.projectedHours}h</span>
+                          <span className="text-red-700">Limit: {risk.threshold}h</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">{risk.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {sidebarTab === "staff" && (
             <div>
-              <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
-                Overtime Risks ({risks.length})
-              </h3>
-              <div className="space-y-2">
-                {risks.length === 0 ? (
+              <p className="text-xs text-muted-foreground mb-3 italic">
+                Drag a worker onto a calendar date to create a shift.
+              </p>
+              <div ref={staffListRef} className="space-y-2">
+                {activeStaff.length === 0 ? (
                   <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
-                    No overtime risks detected.
+                    No active staff found.
                   </div>
                 ) : (
-                  risks.map((risk, i) => (
+                  activeStaff.map((staff) => (
                     <div
-                      key={i}
-                      className="text-xs bg-red-50/50 border border-red-200 text-red-900 rounded p-2.5 space-y-1"
+                      key={staff.userId}
+                      data-staff-id={staff.userId}
+                      data-staff-name={`${staff.firstName} ${staff.lastName}`}
+                      className="flex items-center gap-2.5 rounded-lg border border-border bg-background px-3 py-2 cursor-grab active:cursor-grabbing hover:border-accent/50 hover:bg-accent/5 transition-colors select-none"
                     >
-                      <div className="font-semibold flex justify-between gap-2">
-                        <span>Hours Projected: {risk.projectedHours}h</span>
-                        <span className="text-red-700">Limit: {risk.threshold}h</span>
+                      <div className="size-7 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+                        <span className="text-[10px] font-bold text-accent">
+                          {staff.firstName[0]}{staff.lastName[0]}
+                        </span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{risk.message}</p>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate">
+                          {staff.firstName} {staff.lastName}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          {staff.roleType} · {staff.unit || "No unit"}
+                        </p>
+                      </div>
                     </div>
                   ))
                 )}
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* AI Assistant Modal - works on all screen sizes */}
+      {/* AI Assistant Modal */}
       {isAiPanelOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-4">
           <div className="bg-card border border-border w-full max-w-md rounded-xl shadow-lg flex flex-col max-h-[85vh]">
@@ -581,9 +616,10 @@ export default function ScheduleBuilderPage() {
 
             <div className="flex flex-col flex-1 overflow-y-auto p-4 space-y-4">
               <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground leading-relaxed">
-                Automatically builds the <span className="font-semibold text-foreground">{formatMonthLabel(month)}</span> schedule using your staffing requirements and staff availability. A preview loads on the calendar — review it, then confirm to save.
+                Automatically builds the{" "}
+                <span className="font-semibold text-foreground">{formatMonthLabel(month)}</span>{" "}
+                schedule using your staffing requirements and staff availability. A preview loads on the calendar — review it, then confirm to save.
               </div>
-
               <Button
                 onClick={handleGenerateAI}
                 disabled={generateAiSchedule.isPending}
@@ -618,7 +654,7 @@ export default function ScheduleBuilderPage() {
             {aiPreview && (
               <div className="p-4 border-t border-border space-y-2 shrink-0">
                 <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <Eye className="size-3.5" /> Preview loaded on calendar — grey shifts are AI-generated.
+                  <Eye className="size-3.5" /> Preview on calendar — grey shifts are AI-generated.
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -644,7 +680,7 @@ export default function ScheduleBuilderPage() {
         </div>
       )}
 
-      {/* Manual Add/Edit Modal */}
+      {/* Create / Edit Shift Modal */}
       {modalMode !== "closed" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-card border border-border w-full max-w-md rounded-xl shadow-lg flex flex-col">
@@ -681,9 +717,23 @@ export default function ScheduleBuilderPage() {
                     onChange={(e) => handleTypeChange(e.target.value as ShiftType)}
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 outline-none focus-visible:border-accent"
                   >
-                    <option value="day">Day</option>
-                    <option value="evening">Evening</option>
-                    <option value="night">Night</option>
+                    {configs.length > 0 ? (
+                      configs.map((cfg) => (
+                        <option key={cfg.shiftType} value={cfg.shiftType}>
+                          {cfg.label} ({cfg.durationHours}hr)
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="day">Day (12hr)</option>
+                        <option value="evening">Evening (8hr)</option>
+                        <option value="night">Night (12hr)</option>
+                        <option value="D12">D12 (12hr)</option>
+                        <option value="N12">N12 (12hr)</option>
+                        <option value="D8">D8 (8hr)</option>
+                        <option value="N8">N8 (8hr)</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -709,7 +759,6 @@ export default function ScheduleBuilderPage() {
                     onChange={(e) => setShiftStart(e.target.value)}
                   />
                 </div>
-
                 <div className="space-y-1">
                   <Label htmlFor="shift-end">End Time</Label>
                   <Input
@@ -731,17 +780,14 @@ export default function ScheduleBuilderPage() {
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 outline-none focus-visible:border-accent"
                 >
                   <option value="">-- Choose Worker --</option>
-                  {staffList
-                    .filter((s) => s.status === "active")
-                    .map((s) => (
-                      <option key={s.userId} value={s.userId}>
-                        {s.firstName} {s.lastName} ({s.roleType})
-                      </option>
-                    ))}
+                  {activeStaff.map((s) => (
+                    <option key={s.userId} value={s.userId}>
+                      {s.firstName} {s.lastName} ({s.roleType})
+                    </option>
+                  ))}
                 </select>
               </div>
 
-              {/* Submit Buttons */}
               <div className="pt-4 border-t border-border flex items-center justify-between gap-3">
                 {modalMode === "edit" ? (
                   <Button
@@ -755,19 +801,11 @@ export default function ScheduleBuilderPage() {
                 ) : (
                   <div />
                 )}
-
                 <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setModalMode("closed")}
-                  >
+                  <Button type="button" variant="outline" onClick={() => setModalMode("closed")}>
                     Cancel
                   </Button>
-                  <Button
-                    type="submit"
-                    disabled={createShift.isPending || updateShift.isPending}
-                  >
+                  <Button type="submit" disabled={createShift.isPending || updateShift.isPending}>
                     {createShift.isPending || updateShift.isPending
                       ? "Saving..."
                       : modalMode === "add"

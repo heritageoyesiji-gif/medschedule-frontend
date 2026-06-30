@@ -36,9 +36,8 @@ const DAY_LABELS: Record<Day, string> = {
 
 const SHIFT_TYPES: ShiftType[] = ["day", "evening", "night"];
 const SHIFT_LABELS: Record<ShiftType, string> = {
-  day: "Day",
-  evening: "Evening",
-  night: "Night",
+  day: "Day", evening: "Evening", night: "Night",
+  D12: "D12", N12: "N12", D8: "D8", N8: "N8",
 };
 
 function normalizeAvailability(

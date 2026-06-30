@@ -34,10 +34,14 @@ function tokenUser(req: Request): "admin" | "staff" | null {
 }
 
 function shiftTimes(type: ShiftType): { startTime: string; endTime: string; durationHours: number } {
-  const map = {
+  const map: Record<ShiftType, { startTime: string; endTime: string; durationHours: number }> = {
     day:     { startTime: "07:00", endTime: "19:00", durationHours: 12 },
     evening: { startTime: "15:00", endTime: "23:00", durationHours: 8  },
     night:   { startTime: "19:00", endTime: "07:00", durationHours: 12 },
+    D12:     { startTime: "07:00", endTime: "19:00", durationHours: 12 },
+    N12:     { startTime: "19:00", endTime: "07:00", durationHours: 12 },
+    D8:      { startTime: "07:00", endTime: "15:00", durationHours: 8  },
+    N8:      { startTime: "23:00", endTime: "07:00", durationHours: 8  },
   };
   return map[type];
 }

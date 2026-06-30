@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Settings,
   SlidersHorizontal,
   Users,
   X,
@@ -115,6 +116,7 @@ export default function AdminLayout({
     { href: "/admin/staff", label: "Staff Management", icon: Users },
     { href: "/admin/requests", label: "Swap & Time Off", icon: ClipboardList },
     { href: "/admin/requirements", label: "Staffing Requirements", icon: SlidersHorizontal },
+    { href: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
   if (!hasFacility && isOnboardingRoute) {

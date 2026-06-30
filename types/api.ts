@@ -69,7 +69,19 @@ export type InviteStaffRequest = {
 export type InviteStaffResponse = {
   message: string;
 };
-export type ShiftType = "day" | "evening" | "night";
+export type ShiftType = "day" | "evening" | "night" | "D12" | "N12" | "D8" | "N8";
+
+export type ShiftTypeConfig = {
+  shiftType: string;
+  label: string;
+  startTime: string;
+  endTime: string;
+  durationHours: number;
+};
+
+export type ShiftConfigResponse = {
+  configs: ShiftTypeConfig[];
+};
 export type StaffRoleType = "RN" | "PSW" | "LPN" | "doctor" | "technician";
 export type EmploymentType = "full-time" | "part-time" | "contract";
 export type RequestStatus = "pending" | "approved" | "rejected";
@@ -322,7 +334,7 @@ export type StaffingRequirement = {
   requirementId: string;
   facilityId: string;
   unit: string;
-  shiftType: ShiftType;
+  shiftType: string;
   requiredRole: StaffRoleType;
   minCount: number;
 };
@@ -334,7 +346,7 @@ export type StaffingRequirementsResponse = {
 
 export type ScheduleGap = {
   date: string;
-  type: ShiftType;
+  type: string;
   unit: string;
   requiredRole: StaffRoleType;
   message: string;

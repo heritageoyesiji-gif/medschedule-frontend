@@ -1,20 +1,36 @@
 import type { EventInput } from "@fullcalendar/core";
-import type { Shift, ShiftType } from "@/types/api";
+import type { Shift, ShiftType, ShiftTypeConfig } from "@/types/api";
 
 export const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
-  day: "#D97706",
+  day:     "#D97706",
   evening: "#2563EB",
-  night: "#6D28D9",
+  night:   "#6D28D9",
+  D12:     "#059669",
+  N12:     "#DC2626",
+  D8:      "#0891B2",
+  N8:      "#7C3AED",
 };
 
 const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
-  day: "Day",
+  day:     "Day",
   evening: "Evening",
-  night: "Night",
+  night:   "Night",
+  D12:     "D12",
+  N12:     "N12",
+  D8:      "D8",
+  N8:      "N8",
 };
 
-export function getShiftTypeLabel(type: ShiftType): string {
-  return SHIFT_TYPE_LABELS[type];
+export function getShiftTypeLabel(type: string, configs?: ShiftTypeConfig[]): string {
+  if (configs) {
+    const cfg = configs.find((c) => c.shiftType === type);
+    if (cfg) return cfg.label;
+  }
+  return SHIFT_TYPE_LABELS[type as ShiftType] ?? type;
+}
+
+export function getShiftColor(type: string): string {
+  return SHIFT_TYPE_COLORS[type as ShiftType] ?? "#6B7280";
 }
 
 export function getCurrentMonth(): string {
@@ -40,13 +56,12 @@ export function formatMonthLabel(month: string): string {
   });
 }
 
-
-export function toCalendarEvent(shift: Shift): EventInput {
-  const color = SHIFT_TYPE_COLORS[shift.type];
+export function toCalendarEvent(shift: Shift, configs?: ShiftTypeConfig[]): EventInput {
+  const color = getShiftColor(String(shift.type));
 
   return {
     id: shift.shiftId,
-    title: `${getShiftTypeLabel(shift.type)} — ${shift.unit}`,
+    title: `${getShiftTypeLabel(shift.type, configs)} — ${shift.unit}`,
     start: shift.date,
     allDay: true,
     backgroundColor: color,
@@ -55,13 +70,17 @@ export function toCalendarEvent(shift: Shift): EventInput {
   };
 }
 
-export function getStatusCardClass(type: ShiftType): string {
+export function getStatusCardClass(type: string): string {
   const map: Record<ShiftType, string> = {
-    day: "status-card-day",
+    day:     "status-card-day",
     evening: "status-card-evening",
-    night: "status-card-night",
+    night:   "status-card-night",
+    D12:     "status-card-day",
+    N12:     "status-card-night",
+    D8:      "status-card-evening",
+    N8:      "status-card-night",
   };
-  return `status-card ${map[type]}`;
+  return `status-card ${map[type as ShiftType] ?? "status-card-day"}`;
 }
 
 export function formatShiftTime(startTime: string, endTime: string): string {

@@ -12,9 +12,8 @@ import type { ShiftType, StaffRoleType } from "@/types/api";
 
 const SHIFT_TYPES: ShiftType[] = ["day", "evening", "night"];
 const SHIFT_LABELS: Record<ShiftType, string> = {
-  day: "Day",
-  evening: "Evening",
-  night: "Night",
+  day: "Day", evening: "Evening", night: "Night",
+  D12: "D12", N12: "N12", D8: "D8", N8: "N8",
 };
 
 const ROLE_TYPES: StaffRoleType[] = ["RN", "PSW", "LPN", "doctor", "technician"];
@@ -27,10 +26,10 @@ const ROLE_LABELS: Record<StaffRoleType, string> = {
 };
 
 // matrix[unit][shiftType][role] = minCount
-type Matrix = Record<string, Record<ShiftType, Record<StaffRoleType, number>>>;
+type Matrix = Record<string, Record<string, Record<StaffRoleType, number>>>;
 
-function emptyUnitRow(): Record<ShiftType, Record<StaffRoleType, number>> {
-  const shifts = {} as Record<ShiftType, Record<StaffRoleType, number>>;
+function emptyUnitRow(): Record<string, Record<StaffRoleType, number>> {
+  const shifts: Record<string, Record<StaffRoleType, number>> = {};
   for (const s of SHIFT_TYPES) {
     shifts[s] = { RN: 0, PSW: 0, LPN: 0, doctor: 0, technician: 0 };
   }
@@ -39,10 +38,10 @@ function emptyUnitRow(): Record<ShiftType, Record<StaffRoleType, number>> {
 
 function matrixToFlat(
   matrix: Matrix,
-): Array<{ unit: string; shiftType: ShiftType; requiredRole: StaffRoleType; minCount: number }> {
-  const result: Array<{ unit: string; shiftType: ShiftType; requiredRole: StaffRoleType; minCount: number }> = [];
+): Array<{ unit: string; shiftType: string; requiredRole: StaffRoleType; minCount: number }> {
+  const result: Array<{ unit: string; shiftType: string; requiredRole: StaffRoleType; minCount: number }> = [];
   for (const [unit, shifts] of Object.entries(matrix)) {
-    for (const [shiftType, roles] of Object.entries(shifts) as [ShiftType, Record<StaffRoleType, number>][]) {
+    for (const [shiftType, roles] of Object.entries(shifts) as [string, Record<StaffRoleType, number>][]) {
       for (const [role, count] of Object.entries(roles) as [StaffRoleType, number][]) {
         if (count > 0) {
           result.push({ unit, shiftType, requiredRole: role, minCount: count });
@@ -108,7 +107,7 @@ export default function RequirementsPage() {
     setInitialized(true);
   }, [allUnits, requirementsData, isStaffLoading, isReqLoading, initialized]);
 
-  const setCount = (unit: string, shift: ShiftType, role: StaffRoleType, value: number) => {
+  const setCount = (unit: string, shift: string, role: StaffRoleType, value: number) => {
     setMatrix((prev) => ({
       ...prev,
       [unit]: {

@@ -61,7 +61,7 @@ const staffFormSchema = z.object({
   qualifications: z.string(),
   availability: z.record(
     z.string(),
-    z.array(z.enum(["day", "evening", "night"]))
+    z.array(z.enum(["day", "evening", "night", "D12", "N12", "D8", "N8"]))
   ),
 });
 
@@ -231,7 +231,7 @@ export default function StaffManagementPage() {
     const updated = current.includes(type)
       ? current.filter((t) => t !== type)
       : [...current, type];
-    setValue(`availability.${day}`, updated as ("day" | "evening" | "night")[]);
+    setValue(`availability.${day}`, updated as ShiftType[]);
   };
 
   // Data processing
