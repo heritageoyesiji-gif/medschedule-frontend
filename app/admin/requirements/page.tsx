@@ -16,13 +16,14 @@ const SHIFT_LABELS: Record<ShiftType, string> = {
   D12: "D12", N12: "N12", D8: "D8", N8: "N8",
 };
 
-const ROLE_TYPES: StaffRoleType[] = ["RN", "PSW", "LPN", "doctor", "technician"];
+const ROLE_TYPES: StaffRoleType[] = ["RN", "LPN", "PSW", "LTCA", "doctor", "technician"];
 const ROLE_LABELS: Record<StaffRoleType, string> = {
-  RN: "RN",
-  PSW: "PSW",
-  LPN: "LPN",
-  doctor: "Doctor",
-  technician: "Tech",
+  RN:          "RN",
+  LPN:         "LPN",
+  PSW:         "CCA/PSW",
+  LTCA:        "LTCA",
+  doctor:      "Doctor",
+  technician:  "Tech",
 };
 
 // matrix[unit][shiftType][role] = minCount
@@ -31,7 +32,7 @@ type Matrix = Record<string, Record<string, Record<StaffRoleType, number>>>;
 function emptyUnitRow(): Record<string, Record<StaffRoleType, number>> {
   const shifts: Record<string, Record<StaffRoleType, number>> = {};
   for (const s of SHIFT_TYPES) {
-    shifts[s] = { RN: 0, PSW: 0, LPN: 0, doctor: 0, technician: 0 };
+    shifts[s] = { RN: 0, LPN: 0, PSW: 0, LTCA: 0, doctor: 0, technician: 0 };
   }
   return shifts;
 }

@@ -47,6 +47,7 @@ import {
   getShiftTypeLabel,
   shiftMonth,
 } from "@/lib/schedule";
+import { getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
 import type { Shift, ShiftType, ShiftTypeConfig, StaffProfile } from "@/types/api";
 
 type ModalMode = "add" | "edit" | "closed";
@@ -568,28 +569,38 @@ export default function ScheduleBuilderPage() {
                     No active staff found.
                   </div>
                 ) : (
-                  activeStaff.map((staff) => (
-                    <div
-                      key={staff.userId}
-                      data-staff-id={staff.userId}
-                      data-staff-name={`${staff.firstName} ${staff.lastName}`}
-                      className="flex items-center gap-2.5 rounded-lg border border-border bg-background px-3 py-2 cursor-grab active:cursor-grabbing hover:border-accent/50 hover:bg-accent/5 transition-colors select-none"
-                    >
-                      <div className="size-7 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
-                        <span className="text-[10px] font-bold text-accent">
-                          {staff.firstName[0]}{staff.lastName[0]}
+                  activeStaff.map((staff) => {
+                    const colors = getRoleColors(staff.roleType);
+                    const dot = getRoleDotColor(staff.roleType);
+                    return (
+                      <div
+                        key={staff.userId}
+                        data-staff-id={staff.userId}
+                        data-staff-name={`${staff.firstName} ${staff.lastName}`}
+                        className="flex items-center gap-2.5 rounded-lg border border-border bg-background px-3 py-2 cursor-grab active:cursor-grabbing hover:border-accent/50 hover:bg-accent/5 transition-colors select-none"
+                      >
+                        <div
+                          className="size-7 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: `${dot}20` }}
+                        >
+                          <span className="text-[10px] font-bold" style={{ color: dot }}>
+                            {staff.firstName[0]}{staff.lastName[0]}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-medium text-foreground truncate">
+                            {staff.firstName} {staff.lastName}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {staff.unit || "No unit"}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${colors.bg} ${colors.text} ${colors.border}`}>
+                          {getRoleLabel(staff.roleType)}
                         </span>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-foreground truncate">
-                          {staff.firstName} {staff.lastName}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                          {staff.roleType} · {staff.unit || "No unit"}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

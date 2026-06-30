@@ -82,7 +82,7 @@ export type ShiftTypeConfig = {
 export type ShiftConfigResponse = {
   configs: ShiftTypeConfig[];
 };
-export type StaffRoleType = "RN" | "PSW" | "LPN" | "doctor" | "technician";
+export type StaffRoleType = "RN" | "PSW" | "LPN" | "LTCA" | "doctor" | "technician";
 export type EmploymentType = "full-time" | "part-time" | "contract";
 export type RequestStatus = "pending" | "approved" | "rejected";
 export type ShiftStatus = "confirmed" | "pending" | "cancelled";

@@ -27,6 +27,7 @@ import {
   useUpdateStaff,
 } from "@/hooks/useStaff";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
 import type {
   EmploymentType,
   ShiftType,
@@ -51,7 +52,7 @@ const staffFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Enter a valid email address"),
-  roleType: z.enum(["RN", "PSW", "LPN", "doctor", "technician"]),
+  roleType: z.enum(["RN", "PSW", "LPN", "LTCA", "doctor", "technician"]),
   unit: z.string().min(1, "Unit is required"),
   employmentType: z.enum(["full-time", "part-time", "contract"]),
   maxHoursPerWeek: z
@@ -295,9 +296,10 @@ export default function StaffManagementPage() {
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm outline-none focus-visible:border-accent"
             >
               <option value="all">All Roles</option>
-              <option value="RN">RN (Registered Nurse)</option>
-              <option value="LPN">LPN (Licensed Practical Nurse)</option>
-              <option value="PSW">PSW (Personal Support Worker)</option>
+              <option value="RN">RN — Registered Nurse</option>
+              <option value="LPN">LPN — Licensed Practical Nurse</option>
+              <option value="PSW">CCA/PSW</option>
+              <option value="LTCA">LTCA</option>
               <option value="doctor">Doctor</option>
               <option value="technician">Technician</option>
             </select>
@@ -375,12 +377,18 @@ export default function StaffManagementPage() {
                       {staff.status}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                    <span>{staff.roleType}</span>
-                    <span>•</span>
-                    <span>{staff.unit}</span>
-                    <span>•</span>
-                    <span>{staff.employmentType}</span>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {(() => {
+                      const c = getRoleColors(staff.roleType);
+                      return (
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}>
+                          {getRoleLabel(staff.roleType)}
+                        </span>
+                      );
+                    })()}
+                    <span className="text-xs text-muted-foreground">{staff.unit}</span>
+                    <span className="text-xs text-muted-foreground">·</span>
+                    <span className="text-xs text-muted-foreground">{staff.employmentType}</span>
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground font-mono">
@@ -421,8 +429,16 @@ export default function StaffManagementPage() {
               </div>
               <div className="flex items-center gap-2.5 text-muted-foreground">
                 <User className="size-4" />
-                <span className="text-foreground">
-                  {selectedStaff.roleType} ({selectedStaff.employmentType})
+                <span className="text-foreground flex items-center gap-2">
+                  {(() => {
+                    const c = getRoleColors(selectedStaff.roleType);
+                    return (
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}>
+                        {getRoleLabel(selectedStaff.roleType)}
+                      </span>
+                    );
+                  })()}
+                  <span className="text-muted-foreground text-xs">({selectedStaff.employmentType})</span>
                 </span>
               </div>
               <div className="flex items-center gap-2.5 text-muted-foreground">
@@ -671,9 +687,10 @@ export default function StaffManagementPage() {
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 outline-none focus-visible:border-accent"
                     {...register("roleType")}
                   >
-                    <option value="RN">RN (Registered Nurse)</option>
-                    <option value="LPN">LPN (Licensed Practical Nurse)</option>
-                    <option value="PSW">PSW (Personal Support Worker)</option>
+                    <option value="RN">RN — Registered Nurse</option>
+                    <option value="LPN">LPN — Licensed Practical Nurse</option>
+                    <option value="PSW">CCA/PSW</option>
+                    <option value="LTCA">LTCA</option>
                     <option value="doctor">Doctor</option>
                     <option value="technician">Technician</option>
                   </select>

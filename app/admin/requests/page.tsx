@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { getRoleLabel } from "@/lib/roles";
 import {
   useRespondToSwapRequest,
   useRespondToTimeOffRequest,
@@ -258,7 +259,7 @@ export default function RequestManagementPage() {
                         {req.staff?.firstName} {req.staff?.lastName}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        ({req.staff?.roleType} • {req.staff?.unit})
+                        ({req.staff?.roleType ? getRoleLabel(req.staff.roleType) : ""} • {req.staff?.unit})
                       </span>
                       <span
                         className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${getStatusBadgeClass(

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useSubmitSwapRequest } from "@/hooks/useRequests";
+import { getRoleLabel } from "@/lib/roles";
 import { useFacilityStaff } from "@/hooks/useStaff";
 import { useStaffShifts } from "@/hooks/useShifts";
 import { getApiErrorMessage } from "@/lib/apiError";
@@ -169,8 +170,7 @@ export function SwapRequestForm({ user, myShifts }: SwapRequestFormProps) {
           <option value="">Select a colleague</option>
           {colleagues.map((member) => (
             <option key={member.userId} value={member.userId}>
-              {member.firstName} {member.lastName} · {member.roleType} ·{" "}
-              {member.unit}
+              {member.firstName} {member.lastName} · {getRoleLabel(member.roleType)} · {member.unit}
             </option>
           ))}
         </select>
