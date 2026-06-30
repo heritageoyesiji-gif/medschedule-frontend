@@ -508,7 +508,7 @@ export const handlers = [
         ? [{ date: "2026-06-25", type: "night", unit: "Emergency", requiredRole: "RN", message: "No RN assigned to Emergency night shift — requires immediate coverage." }]
         : [],
       overtimeRisks: month.startsWith("2026-06")
-        ? [{ userId: "usr_004", projectedHours: 52, threshold: 40, message: "James Wilson projected to exceed 40 hrs this week (June 27–30)." }]
+        ? [{ userId: "usr_004", projectedHours: 86, threshold: 80, message: "James Wilson projected 86 hrs in the biweekly period starting 2026-06-22 (limit 80 hrs)" }]
         : [],
     });
   }),
