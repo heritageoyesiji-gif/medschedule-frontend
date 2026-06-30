@@ -137,6 +137,11 @@ export default function AdminLayout({
     { href: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
+  // Select-location is a full-screen picker — render without sidebar
+  if (isSelectLocationRoute) {
+    return <div className="min-h-screen bg-background text-foreground">{children}</div>;
+  }
+
   if (!hasFacility && isOnboardingRoute) {
     return (
       <div className="min-h-screen bg-background text-foreground">
