@@ -11,10 +11,16 @@ import {
   useShiftConfig,
   useUpdateShiftTypeConfig,
 } from "@/hooks/useShiftConfig";
+import {
+  useOvertimeConfig,
+  useResetOvertimeConfig,
+  useUpdateOvertimeConfig,
+} from "@/hooks/useOvertimeConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { getApiErrorMessage } from "@/lib/apiError";
-import type { ShiftTypeConfig } from "@/types/api";
+import { getEmploymentLabel } from "@/lib/roles";
+import type { OvertimeConfig, ShiftTypeConfig } from "@/types/api";
 import { SHIFT_TYPE_COLORS } from "@/lib/schedule";
 import type { ShiftType } from "@/types/api";
 
@@ -155,11 +161,121 @@ function ShiftTypeRow({
   );
 }
 
+function OvertimeRow({
+  config,
+  facilityId,
+}: {
+  config: OvertimeConfig;
+  facilityId: string;
+}) {
+  const noLimit = config.biweeklyHours === null;
+  const [hours, setHours] = useState(noLimit ? "" : String(config.biweeklyHours));
+  const [unlimited, setUnlimited] = useState(noLimit);
+  const [isDirty, setIsDirty] = useState(false);
+
+  const updateConfig = useUpdateOvertimeConfig(facilityId);
+  const resetConfig = useResetOvertimeConfig(facilityId);
+
+  const handleSave = async () => {
+    let biweeklyHours: number | null;
+    if (unlimited) {
+      biweeklyHours = null;
+    } else {
+      const parsed = parseFloat(hours);
+      if (isNaN(parsed) || parsed <= 0 || parsed > 336) {
+        toast.error("Biweekly hours must be between 1 and 336");
+        return;
+      }
+      biweeklyHours = parsed;
+    }
+    try {
+      await updateConfig.mutateAsync({ employmentType: config.employmentType, biweeklyHours });
+      toast.success(`${getEmploymentLabel(config.employmentType)} OT limit updated`);
+      setIsDirty(false);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to save"));
+    }
+  };
+
+  const handleReset = async () => {
+    if (!confirm(`Reset ${getEmploymentLabel(config.employmentType)} to the system default?`)) return;
+    try {
+      await resetConfig.mutateAsync(config.employmentType);
+      toast.success(`${getEmploymentLabel(config.employmentType)} reset to default`);
+      setIsDirty(false);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to reset"));
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="font-semibold text-sm text-foreground truncate">
+          {getEmploymentLabel(config.employmentType)}
+        </span>
+        {isDirty && (
+          <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5 shrink-0">
+            Unsaved
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground select-none">
+          <input
+            type="checkbox"
+            checked={unlimited}
+            onChange={(e) => { setUnlimited(e.target.checked); setIsDirty(true); }}
+            className="size-3.5 accent-accent"
+          />
+          No limit
+        </label>
+        <div className="flex items-center gap-1.5">
+          <Input
+            type="number"
+            min="1"
+            max="336"
+            step="1"
+            value={unlimited ? "" : hours}
+            disabled={unlimited}
+            placeholder="hrs"
+            onChange={(e) => { setHours(e.target.value); setIsDirty(true); }}
+            className="h-8 w-20 text-xs disabled:opacity-40"
+            aria-label={`${getEmploymentLabel(config.employmentType)} biweekly OT hours`}
+          />
+          <span className="text-xs text-muted-foreground">hrs / 2 weeks</span>
+        </div>
+        <Button
+          size="sm"
+          className="text-xs gap-1.5 h-7"
+          disabled={!isDirty || updateConfig.isPending}
+          onClick={handleSave}
+        >
+          <Save className="size-3" />
+          {updateConfig.isPending ? "Saving…" : "Save"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-xs gap-1.5 h-7"
+          disabled={resetConfig.isPending}
+          onClick={handleReset}
+        >
+          <RotateCcw className="size-3" />
+          Reset
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminSettingsPage() {
   const { user } = useAuth();
   const facilityId = useActiveFacilityId();
 
   const { data: configs, isLoading } = useShiftConfig(facilityId);
+  const { data: otConfigs, isLoading: isOtLoading } = useOvertimeConfig(facilityId);
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
@@ -191,6 +307,33 @@ export default function AdminSettingsPage() {
           <div className="space-y-3">
             {configs.map((cfg) => (
               <ShiftTypeRow key={cfg.shiftType} config={cfg} facilityId={facilityId} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3 pt-2">
+        <h2 className="text-sm font-semibold text-foreground">Overtime Thresholds</h2>
+        <p className="text-xs text-muted-foreground">
+          Set the biweekly hours limit for each contract type. Staff projected to exceed their limit
+          within a 2-week pay period are flagged as overtime risks in the Schedule Builder. Choose
+          &quot;No limit&quot; for contract types with no fixed cap.
+        </p>
+
+        {isOtLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} className="h-16 animate-pulse rounded-xl bg-muted/50" />
+            ))}
+          </div>
+        ) : !otConfigs || !facilityId ? (
+          <div className="text-sm text-muted-foreground italic text-center py-8">
+            No facility found. Complete onboarding first.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {otConfigs.map((cfg) => (
+              <OvertimeRow key={cfg.employmentType} config={cfg} facilityId={facilityId} />
             ))}
           </div>
         )}

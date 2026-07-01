@@ -82,6 +82,15 @@ export type ShiftTypeConfig = {
 export type ShiftConfigResponse = {
   configs: ShiftTypeConfig[];
 };
+
+export type OvertimeConfig = {
+  employmentType: EmploymentType;
+  biweeklyHours: number | null; // null = no biweekly OT threshold
+};
+
+export type OvertimeConfigResponse = {
+  configs: OvertimeConfig[];
+};
 export type StaffRoleType = "RN" | "PSW" | "LPN" | "LTCA" | "doctor" | "technician";
 export type EmploymentType =
   | "fulltime-permanent"
