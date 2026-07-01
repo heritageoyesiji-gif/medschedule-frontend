@@ -800,8 +800,7 @@ export default function ScheduleBuilderPage() {
                   <Label htmlFor="shift-start">Start Time</Label>
                   <Input
                     id="shift-start"
-                    type="text"
-                    placeholder="07:00"
+                    type="time"
                     value={shiftStart}
                     onChange={(e) => setShiftStart(e.target.value)}
                   />
@@ -810,8 +809,7 @@ export default function ScheduleBuilderPage() {
                   <Label htmlFor="shift-end">End Time</Label>
                   <Input
                     id="shift-end"
-                    type="text"
-                    placeholder="19:00"
+                    type="time"
                     value={shiftEnd}
                     onChange={(e) => setShiftEnd(e.target.value)}
                   />

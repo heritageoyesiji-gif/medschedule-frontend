@@ -106,8 +106,8 @@ function ShiftTypeRow({
           <Label htmlFor={`start-${config.shiftType}`} className="text-xs">Start Time</Label>
           <Input
             id={`start-${config.shiftType}`}
+            type="time"
             value={startTime}
-            placeholder="07:00"
             onChange={(e) => { setStartTime(e.target.value); markDirty(); }}
             className="h-8 text-xs"
           />
@@ -116,8 +116,8 @@ function ShiftTypeRow({
           <Label htmlFor={`end-${config.shiftType}`} className="text-xs">End Time</Label>
           <Input
             id={`end-${config.shiftType}`}
+            type="time"
             value={endTime}
-            placeholder="19:00"
             onChange={(e) => { setEndTime(e.target.value); markDirty(); }}
             className="h-8 text-xs"
           />
