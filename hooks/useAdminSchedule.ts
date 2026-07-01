@@ -32,6 +32,9 @@ export type UpdateShiftPayload = {
   date?: string;
   type?: ShiftType;
   staffId?: string;
+  unit?: string;
+  startTime?: string;
+  endTime?: string;
 };
 
 export type PublishScheduleResponse = {
