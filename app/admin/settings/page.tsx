@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { getEmploymentLabel } from "@/lib/roles";
+import { QueryError } from "@/components/shared/QueryError";
 import type { OvertimeConfig, ShiftTypeConfig } from "@/types/api";
 import { SHIFT_TYPE_COLORS } from "@/lib/schedule";
 import type { ShiftType } from "@/types/api";
@@ -274,8 +275,13 @@ export default function AdminSettingsPage() {
   const { user } = useAuth();
   const facilityId = useActiveFacilityId();
 
-  const { data: configs, isLoading } = useShiftConfig(facilityId);
-  const { data: otConfigs, isLoading: isOtLoading } = useOvertimeConfig(facilityId);
+  const { data: configs, isLoading, isError, refetch } = useShiftConfig(facilityId);
+  const {
+    data: otConfigs,
+    isLoading: isOtLoading,
+    isError: isOtError,
+    refetch: refetchOt,
+  } = useOvertimeConfig(facilityId);
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
@@ -299,6 +305,8 @@ export default function AdminSettingsPage() {
               <div key={i} className="h-28 animate-pulse rounded-xl bg-muted/50" />
             ))}
           </div>
+        ) : isError ? (
+          <QueryError message="Couldn't load shift types." onRetry={() => void refetch()} />
         ) : !configs || !facilityId ? (
           <div className="text-sm text-muted-foreground italic text-center py-8">
             No facility found. Complete onboarding first.
@@ -326,6 +334,8 @@ export default function AdminSettingsPage() {
               <div key={i} className="h-16 animate-pulse rounded-xl bg-muted/50" />
             ))}
           </div>
+        ) : isOtError ? (
+          <QueryError message="Couldn't load overtime thresholds." onRetry={() => void refetchOt()} />
         ) : !otConfigs || !facilityId ? (
           <div className="text-sm text-muted-foreground italic text-center py-8">
             No facility found. Complete onboarding first.

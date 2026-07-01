@@ -49,6 +49,7 @@ import {
   shiftMonth,
 } from "@/lib/schedule";
 import { getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
+import { QueryError } from "@/components/shared/QueryError";
 import type { Shift, ShiftType, ShiftTypeConfig, StaffProfile } from "@/types/api";
 
 type ModalMode = "add" | "edit" | "closed";
@@ -107,7 +108,7 @@ export default function ScheduleBuilderPage() {
   }, []);
 
   const { data: staffData } = useFacilityStaff(facilityId);
-  const { data: scheduleData, isLoading: isScheduleLoading, refetch: refetchSchedule } =
+  const { data: scheduleData, isLoading: isScheduleLoading, isError: isScheduleError, refetch: refetchSchedule } =
     useFacilitySchedule(facilityId, month);
   const { data: shiftConfigs } = useShiftConfig(facilityId);
 
@@ -464,6 +465,13 @@ export default function ScheduleBuilderPage() {
         <div className="flex-1 rounded-xl border border-border bg-card p-4 shadow-sm min-h-125">
           {isScheduleLoading ? (
             <CalendarSkeleton />
+          ) : isScheduleError ? (
+            <div className="flex h-full items-center justify-center">
+              <QueryError
+                message="Couldn't load the schedule for this month."
+                onRetry={() => void refetchSchedule()}
+              />
+            </div>
           ) : (
             <div className="shift-calendar h-full relative">
               <FullCalendar

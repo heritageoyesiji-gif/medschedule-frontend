@@ -25,6 +25,7 @@ import {
 } from "@/hooks/useRequests";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { formatShiftDate } from "@/lib/schedule";
+import { QueryError } from "@/components/shared/QueryError";
 import type { RequestStatus, SwapRequest, TimeOffRequest } from "@/types/api";
 
 type TabType = "time-off" | "swaps";
@@ -42,12 +43,14 @@ export default function RequestManagementPage() {
   const {
     data: timeOffData,
     isLoading: isTimeOffLoading,
+    isError: isTimeOffError,
     refetch: refetchTimeOff,
   } = useTimeOffRequests(facilityId, statusFilter === "all" ? undefined : statusFilter);
 
   const {
     data: swapData,
     isLoading: isSwapLoading,
+    isError: isSwapError,
     refetch: refetchSwaps,
   } = useSwapRequests(facilityId, statusFilter === "all" ? undefined : statusFilter);
 
@@ -240,6 +243,11 @@ export default function RequestManagementPage() {
                 </div>
               ))}
             </div>
+          ) : isTimeOffError ? (
+            <QueryError
+              message="Couldn't load time-off requests."
+              onRetry={() => void refetchTimeOff()}
+            />
           ) : timeOffRequests.length === 0 ? (
             <div className="p-12 text-center text-sm text-muted-foreground border border-dashed border-border rounded-xl">
               <ClipboardList className="size-8 text-muted-foreground/50 mx-auto mb-2" />
@@ -381,6 +389,11 @@ export default function RequestManagementPage() {
               </div>
             ))}
           </div>
+        ) : isSwapError ? (
+          <QueryError
+            message="Couldn't load swap requests."
+            onRetry={() => void refetchSwaps()}
+          />
         ) : swapRequests.length === 0 ? (
           <div className="p-12 text-center text-sm text-muted-foreground border border-dashed border-border rounded-xl">
             <ClipboardList className="size-8 text-muted-foreground/50 mx-auto mb-2" />

@@ -29,6 +29,7 @@ import {
 import { getApiErrorMessage } from "@/lib/apiError";
 import { getEmploymentLabel, getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
 import { useActiveFacilityId } from "@/hooks/useActiveFacility";
+import { QueryError } from "@/components/shared/QueryError";
 import type {
   EmploymentType,
   ShiftType,
@@ -84,7 +85,7 @@ export default function StaffManagementPage() {
   const [inviteEmail, setInviteEmail] = useState("");
 
   // Queries & Mutations
-  const { data: staffData, isLoading, refetch } = useFacilityStaff(facilityId);
+  const { data: staffData, isLoading, isError, refetch } = useFacilityStaff(facilityId);
   const addStaff = useAddStaff(facilityId);
   const updateStaff = useUpdateStaff(facilityId, selectedStaff?.userId ?? "");
   const deactivateStaff = useDeactivateStaff(facilityId, selectedStaff?.userId ?? "");
@@ -345,6 +346,10 @@ export default function StaffManagementPage() {
                   <div className="h-3 w-10 animate-pulse rounded bg-muted" />
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="p-4">
+              <QueryError message="Couldn't load staff members." onRetry={() => void refetch()} />
             </div>
           ) : filteredStaff.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground border-dashed border-border m-4 border rounded-xl">

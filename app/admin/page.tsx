@@ -23,6 +23,7 @@ import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { useFacilitySchedule } from "@/hooks/useAdminSchedule";
 import { useSwapRequests, useTimeOffRequests } from "@/hooks/useRequests";
 import { useFacilityStaff } from "@/hooks/useStaff";
+import { QueryError } from "@/components/shared/QueryError";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { getCurrentMonth } from "@/lib/schedule";
 
@@ -42,21 +43,27 @@ export default function AdminDashboard() {
   const [isNewAnnouncementOpen, setIsNewAnnouncementOpen] = useState(false);
 
   // Queries
-  const { data: staffData, isLoading: isStaffLoading } = useFacilityStaff(facilityId);
-  const { data: scheduleData, isLoading: isScheduleLoading } = useFacilitySchedule(
-    facilityId,
-    currentMonth,
-  );
-  const { data: swapData, isLoading: isSwapLoading } = useSwapRequests(
-    facilityId,
-    "pending",
-  );
-  const { data: timeOffData, isLoading: isTimeOffLoading } = useTimeOffRequests(
+  const { data: staffData, isLoading: isStaffLoading, isError: isStaffError } = useFacilityStaff(facilityId);
+  const {
+    data: scheduleData,
+    isLoading: isScheduleLoading,
+    isError: isScheduleError,
+    refetch: refetchSchedule,
+  } = useFacilitySchedule(facilityId, currentMonth);
+  const { data: swapData, isLoading: isSwapLoading, isError: isSwapError } = useSwapRequests(
     facilityId,
     "pending",
   );
-  const { data: announcementsData, isLoading: isAnnouncementsLoading, refetch: refetchAnnouncements } =
-    useAnnouncements(facilityId);
+  const { data: timeOffData, isLoading: isTimeOffLoading, isError: isTimeOffError } = useTimeOffRequests(
+    facilityId,
+    "pending",
+  );
+  const {
+    data: announcementsData,
+    isLoading: isAnnouncementsLoading,
+    isError: isAnnouncementsError,
+    refetch: refetchAnnouncements,
+  } = useAnnouncements(facilityId);
 
   // Mutation
   const createAnnouncement = useCreateAnnouncement();
@@ -124,7 +131,7 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-2">
             <span className="text-3xl font-semibold tracking-tight text-foreground">
-              {isStaffLoading ? "..." : staffData?.total ?? 0}
+              {isStaffLoading ? "..." : isStaffError ? "—" : staffData?.total ?? 0}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -145,7 +152,7 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-2">
             <span className="text-3xl font-semibold tracking-tight text-foreground">
-              {isScheduleLoading ? "..." : gapsCount}
+              {isScheduleLoading ? "..." : isScheduleError ? "—" : gapsCount}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -166,7 +173,11 @@ export default function AdminDashboard() {
           </div>
           <div className="mt-2">
             <span className="text-3xl font-semibold tracking-tight text-foreground">
-              {isSwapLoading || isTimeOffLoading ? "..." : pendingRequestsCount}
+              {isSwapLoading || isTimeOffLoading
+                ? "..."
+                : isSwapError || isTimeOffError
+                ? "—"
+                : pendingRequestsCount}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -202,6 +213,12 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            ) : isScheduleError ? (
+              <QueryError
+                className="mt-6"
+                message="Couldn't load gaps and overtime risks."
+                onRetry={() => void refetchSchedule()}
+              />
             ) : gapsCount === 0 && overtimeCount === 0 ? (
               <div className="mt-6 rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                 No active gaps or overtime risks detected for this month.
@@ -370,6 +387,12 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            ) : isAnnouncementsError ? (
+              <QueryError
+                className="mt-4 p-6"
+                message="Couldn't load announcements."
+                onRetry={() => void refetchAnnouncements()}
+              />
             ) : !announcementsData?.announcements || announcementsData.announcements.length === 0 ? (
               <div className="mt-4 text-center py-6 text-xs text-muted-foreground border border-dashed border-border rounded-lg">
                 No announcements posted yet.

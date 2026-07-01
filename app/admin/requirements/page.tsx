@@ -9,6 +9,7 @@ import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { useFacilityStaff } from "@/hooks/useStaff";
 import { useRequirements, useReplaceRequirements } from "@/hooks/useRequirements";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { QueryError } from "@/components/shared/QueryError";
 import type { ShiftType, StaffRoleType } from "@/types/api";
 
 const SHIFT_TYPES: ShiftType[] = ["day", "evening", "night"];
@@ -74,8 +75,10 @@ export default function RequirementsPage() {
   const { user } = useAuth();
   const facilityId = useActiveFacilityId();
 
-  const { data: staffData, isLoading: isStaffLoading } = useFacilityStaff(facilityId);
-  const { data: requirementsData, isLoading: isReqLoading } = useRequirements(facilityId);
+  const { data: staffData, isLoading: isStaffLoading, isError: isStaffError, refetch: refetchStaff } =
+    useFacilityStaff(facilityId);
+  const { data: requirementsData, isLoading: isReqLoading, isError: isReqError, refetch: refetchReqs } =
+    useRequirements(facilityId);
   const replaceReqs = useReplaceRequirements(facilityId);
 
   const [matrix, setMatrix] = useState<Matrix>({});
@@ -132,6 +135,23 @@ export default function RequirementsPage() {
   };
 
   if (isStaffLoading || isReqLoading) return <PageSkeleton />;
+
+  if (isStaffError || isReqError) {
+    return (
+      <div className="p-6 md:p-8">
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold text-foreground">Staffing Requirements</h1>
+        </div>
+        <QueryError
+          message="Couldn't load staffing requirements."
+          onRetry={() => {
+            void refetchStaff();
+            void refetchReqs();
+          }}
+        />
+      </div>
+    );
+  }
 
   const units = Object.keys(matrix);
 
