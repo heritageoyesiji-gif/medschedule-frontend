@@ -94,6 +94,18 @@ export default function ScheduleBuilderPage() {
 
   const staffListRef = useRef<HTMLDivElement>(null);
 
+  // FullCalendar needs a definite parent height for height="100%". That chain only
+  // exists at lg+ (outer container is lg:h-[calc(100vh-4rem)]). On mobile the chain
+  // is auto, so "100%" collapses the grid — use "auto" there to render a natural grid.
+  const [calHeight, setCalHeight] = useState<number | "auto" | string>("auto");
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setCalHeight(mq.matches ? "100%" : "auto");
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const { data: staffData } = useFacilityStaff(facilityId);
   const { data: scheduleData, isLoading: isScheduleLoading, refetch: refetchSchedule } =
     useFacilitySchedule(facilityId, month);
@@ -456,7 +468,7 @@ export default function ScheduleBuilderPage() {
                 eventDrop={handleEventDrop}
                 eventReceive={handleEventReceive}
                 fixedWeekCount={false}
-                height="100%"
+                height={calHeight}
                 dayMaxEvents={3}
               />
               {shifts.length === 0 && !aiPreview && (
