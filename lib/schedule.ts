@@ -33,6 +33,23 @@ export function getShiftColor(type: string): string {
   return SHIFT_TYPE_COLORS[type as ShiftType] ?? "#6B7280";
 }
 
+// Longest a single shift may run. Anything longer is almost certainly a
+// backwards same-day entry (e.g. 19:00 → 18:00 wraps to 23h).
+export const MAX_SHIFT_HOURS = 16;
+
+// Duration of a shift in hours from HH:MM start/end. An end at or before the
+// start is treated as the next day (overnight). Returns null for invalid input.
+export function shiftDurationHours(start: string, end: string): number | null {
+  const re = /^(\d{2}):(\d{2})$/;
+  const s = re.exec(start);
+  const e = re.exec(end);
+  if (!s || !e) return null;
+  const startMins = Number(s[1]) * 60 + Number(s[2]);
+  let endMins = Number(e[1]) * 60 + Number(e[2]);
+  if (endMins <= startMins) endMins += 24 * 60;
+  return (endMins - startMins) / 60;
+}
+
 export function getCurrentMonth(): string {
   const now = new Date();
   const year = now.getFullYear();

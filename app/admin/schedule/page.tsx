@@ -46,6 +46,8 @@ import {
   getCurrentMonth,
   getShiftColor,
   getShiftTypeLabel,
+  MAX_SHIFT_HOURS,
+  shiftDurationHours,
   shiftMonth,
 } from "@/lib/schedule";
 import { getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
@@ -228,6 +230,15 @@ export default function ScheduleBuilderPage() {
     if (!shiftStaffId) {
       toast.error("Please assign a staff member");
       return;
+    }
+    if (modalMode === "add") {
+      const dur = shiftDurationHours(shiftStart, shiftEnd);
+      if (dur === null || dur <= 0 || dur > MAX_SHIFT_HOURS) {
+        toast.error(
+          `Those times give a ${dur ?? "?"}-hour shift. A shift must be 0–${MAX_SHIFT_HOURS} hours. For an overnight shift the end time counts as the next day — otherwise check the start and end times.`,
+        );
+        return;
+      }
     }
     try {
       if (modalMode === "add") {
