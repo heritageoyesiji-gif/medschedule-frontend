@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin, { Draggable } from "@fullcalendar/interaction";
-import type { EventReceiveArg } from "@fullcalendar/interaction";
+import type { DateClickArg, EventReceiveArg } from "@fullcalendar/interaction";
 import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import { toast } from "sonner";
 import {
@@ -194,6 +194,17 @@ export default function ScheduleBuilderPage() {
       info.revert();
       toast.error(getApiErrorMessage(err, "Failed to move shift"));
     }
+  };
+
+  // Tap/click a calendar day → open the add-shift modal pre-filled with that date.
+  // Primary way to add shifts on mobile (where dragging isn't available).
+  const handleDateClick = (info: DateClickArg) => {
+    setEditingShift(null);
+    setShiftDate(info.dateStr);
+    handleTypeChange("day");
+    setShiftUnit(selectedUnit !== "all" ? selectedUnit : "ICU");
+    setShiftStaffId("");
+    setModalMode("add");
   };
 
   // Worker dragged from sidebar and dropped onto a calendar date cell
@@ -463,6 +474,7 @@ export default function ScheduleBuilderPage() {
                 headerToolbar={false}
                 events={calendarEvents}
                 eventClick={handleEventClick}
+                dateClick={handleDateClick}
                 editable={true}
                 droppable={true}
                 eventDrop={handleEventDrop}
@@ -476,7 +488,7 @@ export default function ScheduleBuilderPage() {
                   <Calendar className="mb-3 size-10 text-muted-foreground/40" />
                   <p className="font-medium text-foreground">No shifts this month</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Copy last month&apos;s schedule, use AI, or drag a worker from the Staff panel onto a date.
+                    Tap any day to add a shift — or copy last month&apos;s schedule or use AI to get started.
                   </p>
                   <div className="pointer-events-auto mt-4">
                     <Button
