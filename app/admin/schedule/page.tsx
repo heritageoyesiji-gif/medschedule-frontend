@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Brain,
   Calendar,
+  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -34,6 +35,7 @@ import {
   useFacilitySchedule,
   useGenerateAISchedule,
   usePublishSchedule,
+  useUnpublishSchedule,
   useUpdateShift,
 } from "@/hooks/useAdminSchedule";
 import { useShiftConfig } from "@/hooks/useShiftConfig";
@@ -118,6 +120,7 @@ export default function ScheduleBuilderPage() {
   const updateShift = useUpdateShift(facilityId, month);
   const deleteShift = useDeleteShift(facilityId, month);
   const publishSchedule = usePublishSchedule(facilityId);
+  const unpublishSchedule = useUnpublishSchedule(facilityId);
   const copySchedule = useCopySchedule(facilityId);
   const generateAiSchedule = useGenerateAISchedule();
   const confirmAiSchedule = useConfirmAISchedule();
@@ -291,6 +294,23 @@ export default function ScheduleBuilderPage() {
     }
   };
 
+  const handleUnpublish = async () => {
+    if (
+      !confirm(
+        `Unpublish the ${formatMonthLabel(month)} schedule? Staff will no longer see it as published until you publish it again.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await unpublishSchedule.mutateAsync(month);
+      toast.success("Schedule unpublished — it's back in draft.");
+      void refetchSchedule();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to unpublish schedule"));
+    }
+  };
+
   const handleCopyFromLastMonth = async () => {
     const sourceMonth = shiftMonth(month, -1);
     if (!confirm(`Copy all shifts from ${formatMonthLabel(sourceMonth)} to ${formatMonthLabel(month)}?`)) return;
@@ -461,14 +481,31 @@ export default function ScheduleBuilderPage() {
               <Brain className="size-3.5" /> AI Assistant
             </Button>
 
-            <Button
-              onClick={handlePublish}
-              size="sm"
-              disabled={isPublished || publishSchedule.isPending}
-              className="text-xs bg-teal-700 hover:bg-teal-800 disabled:bg-muted disabled:text-muted-foreground"
-            >
-              {isPublished ? "Published" : "Publish Schedule"}
-            </Button>
+            {isPublished ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-teal-700">
+                  <Check className="size-3.5" /> Published
+                </span>
+                <Button
+                  onClick={handleUnpublish}
+                  size="sm"
+                  variant="outline"
+                  disabled={unpublishSchedule.isPending}
+                  className="text-xs"
+                >
+                  {unpublishSchedule.isPending ? "Unpublishing…" : "Unpublish"}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                onClick={handlePublish}
+                size="sm"
+                disabled={publishSchedule.isPending}
+                className="text-xs bg-teal-700 hover:bg-teal-800 disabled:bg-muted disabled:text-muted-foreground"
+              >
+                {publishSchedule.isPending ? "Publishing…" : "Publish Schedule"}
+              </Button>
+            )}
           </div>
         </div>
 

@@ -185,6 +185,37 @@ export function usePublishSchedule(facilityId: string | null) {
   });
 }
 
+// 4.6b Unpublish Schedule (Admin)
+export type UnpublishScheduleResponse = {
+  month: string;
+  published: boolean;
+  affectedCount: number;
+};
+
+export function useUnpublishSchedule(facilityId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (month: string) => {
+      const { data } = await api.post<ApiResponse<UnpublishScheduleResponse>>(
+        `/facilities/${facilityId}/schedule/unpublish`,
+        { month },
+      );
+      if (!data.success || !data.data) {
+        throw new Error(data.error?.message ?? "Failed to unpublish schedule");
+      }
+      return data.data;
+    },
+    onSuccess: (_, month) => {
+      if (facilityId) {
+        void queryClient.invalidateQueries({
+          queryKey: adminScheduleKeys.facilityMonth(facilityId, month),
+        });
+      }
+    },
+  });
+}
+
 // 5.1 Generate Schedule (Preview)
 type GenerateAIPayload = {
   facilityId: string;
