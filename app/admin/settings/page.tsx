@@ -21,6 +21,7 @@ import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { getApiErrorMessage } from "@/lib/apiError";
 import { getEmploymentLabel } from "@/lib/roles";
 import { QueryError } from "@/components/shared/QueryError";
+import { ChangePasswordForm } from "@/components/shared/ChangePasswordForm";
 import type { OvertimeConfig, ShiftTypeConfig } from "@/types/api";
 import { SHIFT_TYPE_COLORS } from "@/lib/schedule";
 import type { ShiftType } from "@/types/api";
@@ -347,6 +348,12 @@ export default function AdminSettingsPage() {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="space-y-3 pt-2">
+        <h2 className="text-sm font-semibold text-foreground">Account</h2>
+        <p className="text-xs text-muted-foreground">Change the password you use to sign in.</p>
+        <ChangePasswordForm />
       </div>
     </div>
   );

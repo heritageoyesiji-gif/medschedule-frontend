@@ -5,6 +5,7 @@ import { Building2, Users, CalendarDays, Activity, ChevronDown, ChevronUp } from
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useSuperStats, useSuperFacilities, useDeactivateFacility, useReactivateFacility } from "@/hooks/useSuper";
+import { ChangePasswordForm } from "@/components/shared/ChangePasswordForm";
 import type { SuperFacility } from "@/types/api";
 
 function StatCard({ label, value, icon: Icon }: { label: string; value: number | undefined; icon: React.ElementType }) {
@@ -162,6 +163,11 @@ export default function SuperDashboard() {
             ))}
           </div>
         )}
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold text-foreground mb-4">Account</h2>
+        <ChangePasswordForm />
       </div>
     </div>
   );

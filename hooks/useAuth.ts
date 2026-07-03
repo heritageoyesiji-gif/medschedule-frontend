@@ -195,6 +195,21 @@ export function useResetPassword() {
   });
 }
 
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: async (payload: { currentPassword: string; newPassword: string }) => {
+      const { data } = await api.post<ApiResponse<{ message: string }>>(
+        "/auth/change-password",
+        payload,
+      );
+      if (!data.success) {
+        throw new Error(data.error?.message ?? "Failed to change password");
+      }
+      return data.data;
+    },
+  });
+}
+
 export function useInviteInfo(token: string | null) {
   return useQuery({
     queryKey: ["auth", "invite", token] as const,
