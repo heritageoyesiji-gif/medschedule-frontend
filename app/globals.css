@@ -187,5 +187,7 @@
     font-weight: 500;
     margin-top: 2px;
     padding: 1px 4px;
+    /* Left border is the shift-type stripe; the fill is the unit color. */
+    border-left-width: 4px;
   }
 }

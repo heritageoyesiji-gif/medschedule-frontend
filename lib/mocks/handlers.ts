@@ -495,6 +495,8 @@ export const handlers = [
       availability: body.availability ?? {},
       maxHoursPerWeek: body.maxHoursPerWeek ?? 40,
       status: "active",
+      phone: body.phone ?? "",
+      notes: body.notes ?? "",
     };
     STAFF_PROFILES.push(newStaff);
     return HttpResponse.json({ success: true, data: newStaff, error: null }, { status: 201 });

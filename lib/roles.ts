@@ -6,6 +6,7 @@ export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
   "parttime-permanent":  "Part-time Permanent",
   "parttime-temporary":  "Part-time Temporary",
   "casual":              "Casual",
+  "travel":              "Travel Staff",
 };
 
 export function getEmploymentLabel(type: EmploymentType | string): string {

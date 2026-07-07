@@ -97,7 +97,8 @@ export type EmploymentType =
   | "fulltime-temporary"
   | "parttime-permanent"
   | "parttime-temporary"
-  | "casual";
+  | "casual"
+  | "travel";
 export type RequestStatus = "pending" | "approved" | "rejected";
 export type ShiftStatus = "confirmed" | "pending" | "cancelled";
 export type NotificationType =
@@ -167,6 +168,13 @@ export type StaffProfile = {
   availability: Record<string, ShiftType[]>;
   maxHoursPerWeek: number;
   status: "active" | "inactive";
+  // Contact number shown to schedulers (e.g. to call someone to fill a gap).
+  // Optional so existing profiles without a phone stay valid.
+  phone?: string;
+  // Free-text scheduling notes admins leave for schedulers, e.g. "can work
+  // different units", "only work UTC", "prefers day shifts". Optional so
+  // existing profiles without notes stay valid.
+  notes?: string;
 };
 
 export type Shift = {

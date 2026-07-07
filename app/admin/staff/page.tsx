@@ -8,6 +8,7 @@ import { z } from "zod";
 import {
   AlertCircle,
   Mail,
+  Phone,
   Plus,
   Search,
   ShieldAlert,
@@ -54,14 +55,16 @@ const staffFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Enter a valid email address"),
+  phone: z.string(),
   roleType: z.enum(["RN", "PSW", "LPN", "LTCA", "doctor", "technician"]),
   unit: z.string().min(1, "Unit is required"),
-  employmentType: z.enum(["fulltime-permanent", "fulltime-temporary", "parttime-permanent", "parttime-temporary", "casual"]),
+  employmentType: z.enum(["fulltime-permanent", "fulltime-temporary", "parttime-permanent", "parttime-temporary", "casual", "travel"]),
   maxHoursPerWeek: z
     .number()
     .min(1, "Must be at least 1 hour")
     .max(168, "Cannot exceed 168 hours"),
   qualifications: z.string(),
+  notes: z.string(),
   availability: z.record(
     z.string(),
     z.array(z.enum(["day", "evening", "night", "D12", "N12", "D8", "N8"]))
@@ -105,11 +108,13 @@ export default function StaffManagementPage() {
       firstName: "",
       lastName: "",
       email: "",
+      phone: "",
       roleType: "RN",
       unit: "ICU",
       employmentType: "fulltime-permanent",
       maxHoursPerWeek: 40,
       qualifications: "",
+      notes: "",
       availability: DAYS_OF_WEEK.reduce(
         (acc, day) => ({ ...acc, [day]: ["day", "evening"] }),
         {}
@@ -125,11 +130,13 @@ export default function StaffManagementPage() {
       firstName: "",
       lastName: "",
       email: "",
+      phone: "",
       roleType: "RN",
       unit: "ICU",
       employmentType: "fulltime-permanent",
       maxHoursPerWeek: 40,
       qualifications: "",
+      notes: "",
       availability: DAYS_OF_WEEK.reduce(
         (acc, day) => ({ ...acc, [day]: ["day", "evening"] }),
         {}
@@ -144,11 +151,13 @@ export default function StaffManagementPage() {
       firstName: staff.firstName,
       lastName: staff.lastName,
       email: staff.email,
+      phone: staff.phone ?? "",
       roleType: staff.roleType,
       unit: staff.unit,
       employmentType: staff.employmentType,
       maxHoursPerWeek: staff.maxHoursPerWeek,
       qualifications: (staff.qualifications || []).join(", "),
+      notes: staff.notes ?? "",
       availability: staff.availability || {},
     });
     setIsAddModalOpen(true);
@@ -172,6 +181,8 @@ export default function StaffManagementPage() {
           employmentType: values.employmentType as EmploymentType,
           availability: values.availability as Record<string, ShiftType[]>,
           maxHoursPerWeek: values.maxHoursPerWeek,
+          phone: values.phone.trim(),
+          notes: values.notes.trim(),
         });
         toast.success("Staff profile updated successfully");
         setSelectedStaff(updated);
@@ -181,12 +192,14 @@ export default function StaffManagementPage() {
           firstName: values.firstName,
           lastName: values.lastName,
           email: values.email,
+          phone: values.phone.trim(),
           roleType: values.roleType as StaffRoleType,
           unit: values.unit,
           qualifications: quals,
           employmentType: values.employmentType as EmploymentType,
           availability: values.availability as Record<string, ShiftType[]>,
           maxHoursPerWeek: values.maxHoursPerWeek,
+          notes: values.notes.trim(),
         });
         toast.success("Staff member added successfully");
       }
@@ -433,6 +446,14 @@ export default function StaffManagementPage() {
                 <Mail className="size-4" />
                 <span className="text-foreground">{selectedStaff.email}</span>
               </div>
+              {selectedStaff.phone?.trim() && (
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <Phone className="size-4" />
+                  <a href={`tel:${selectedStaff.phone}`} className="text-foreground hover:text-accent">
+                    {selectedStaff.phone}
+                  </a>
+                </div>
+              )}
               <div className="flex items-center gap-2.5 text-muted-foreground">
                 <User className="size-4" />
                 <span className="text-foreground flex items-center gap-2">
@@ -451,6 +472,22 @@ export default function StaffManagementPage() {
                 <Users className="size-4" />
                 <span className="text-foreground">Unit: {selectedStaff.unit}</span>
               </div>
+            </div>
+
+            {/* Scheduling Notes */}
+            <div>
+              <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
+                Scheduling Notes
+              </h3>
+              {selectedStaff.notes?.trim() ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-sm text-amber-900 whitespace-pre-wrap">
+                  {selectedStaff.notes}
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground italic">
+                  No notes added.
+                </span>
+              )}
             </div>
 
             {/* Qualifications */}
@@ -685,6 +722,16 @@ export default function StaffManagementPage() {
                 )}
               </div>
 
+              <div className="space-y-1">
+                <Label htmlFor="form-phone">Phone Number</Label>
+                <Input
+                  id="form-phone"
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  {...register("phone")}
+                />
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1">
                   <Label htmlFor="form-roleType">Role Type</Label>
@@ -727,6 +774,7 @@ export default function StaffManagementPage() {
                     <option value="parttime-permanent">Part-time Permanent</option>
                     <option value="parttime-temporary">Part-time Temporary</option>
                     <option value="casual">Casual</option>
+                    <option value="travel">Travel Staff</option>
                   </select>
                 </div>
               </div>
@@ -753,6 +801,20 @@ export default function StaffManagementPage() {
                     {...register("qualifications")}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="form-notes">Scheduling Notes</Label>
+                <textarea
+                  id="form-notes"
+                  rows={3}
+                  placeholder="e.g. Can work different units · Only work UTC · Prefers day shifts"
+                  className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-accent resize-y"
+                  {...register("notes")}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Visible to schedulers on this staff member&apos;s profile.
+                </p>
               </div>
 
               {/* Weekly Availability Setup */}

@@ -12,10 +12,12 @@ import {
   Brain,
   Calendar,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
   Eye,
+  Phone,
   Plus,
   Send,
   Settings,
@@ -52,12 +54,15 @@ import {
   shiftDurationHours,
   shiftMonth,
 } from "@/lib/schedule";
-import { getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
+import { getEmploymentLabel, getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
+import { getUnitColor } from "@/lib/units";
 import { QueryError } from "@/components/shared/QueryError";
-import type { Shift, ShiftType, ShiftTypeConfig, StaffProfile } from "@/types/api";
+import type { Shift, ShiftType, ShiftTypeConfig, StaffProfile, StaffRoleType } from "@/types/api";
 
 type ModalMode = "add" | "edit" | "closed";
-type SidebarTab = "health" | "staff";
+
+// Fixed display order for the role-grouped staff list on the left.
+const ROLE_ORDER: StaffRoleType[] = ["RN", "LPN", "PSW", "LTCA", "doctor", "technician"];
 
 function CalendarSkeleton() {
   return (
@@ -84,7 +89,9 @@ export default function ScheduleBuilderPage() {
 
   const [month, setMonth] = useState(getCurrentMonth);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("health");
+  // Roles collapsed in the left staff list. Empty = all expanded (names visible
+  // by default; tapping a role header collapses/expands its people).
+  const [collapsedRoles, setCollapsedRoles] = useState<Set<StaffRoleType>>(new Set());
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [aiPreview, setAiPreview] = useState<AIGenerateScheduleResponse | null>(null);
 
@@ -153,7 +160,7 @@ export default function ScheduleBuilderPage() {
       },
     });
     return () => draggable.destroy();
-  }, [staffList, sidebarTab]);
+  }, [staffList, collapsedRoles]);
 
   const getConfigForType = (type: ShiftType) =>
     configs.find((c) => c.shiftType === type) ?? null;
@@ -222,7 +229,13 @@ export default function ScheduleBuilderPage() {
     setShiftStaffId(staffId);
     setShiftDate(date);
     handleTypeChange("day");
-    setShiftUnit(staffList.find((s) => s.userId === staffId)?.unit || "ICU");
+    // Drop into the unit currently being viewed (so any worker can cover a short
+    // unit). Fall back to the worker's home unit when viewing all units.
+    setShiftUnit(
+      selectedUnit !== "all"
+        ? selectedUnit
+        : staffList.find((s) => s.userId === staffId)?.unit || "ICU",
+    );
     setEditingShift(null);
     setModalMode("add");
   };
@@ -358,17 +371,21 @@ export default function ScheduleBuilderPage() {
 
   const calendarEvents = useMemo(() => {
     const regularEvents = filteredShifts.map((shift) => {
-      const color = getShiftColor(shift.type);
+      // Fill color = unit (LTN, LTC, …); left border stripe = shift type.
+      const unitColor = getUnitColor(shift.unit);
+      const typeColor = getShiftColor(shift.type);
       const staffName = shift.staff
         ? `${shift.staff.firstName} ${shift.staff.lastName}`
         : "Unassigned";
       return {
         id: shift.shiftId,
-        title: `${getShiftTypeLabel(shift.type, configs)} · ${staffName}`,
+        title: `${shift.unit} · ${getShiftTypeLabel(shift.type, configs)} · ${staffName}`,
         start: shift.date,
         allDay: true,
-        backgroundColor: color,
-        borderColor: color,
+        backgroundColor: unitColor,
+        borderColor: typeColor,
+        // Sortable so same-unit shifts group together within a day (see eventOrder).
+        unit: shift.unit,
         extendedProps: { shift },
       };
     });
@@ -389,6 +406,7 @@ export default function ScheduleBuilderPage() {
             backgroundColor: "#9CA3AF",
             borderColor: "#6B7280",
             className: "opacity-75",
+            unit: s.unit,
             extendedProps: { isPreview: true, shift: s },
           };
         });
@@ -403,8 +421,132 @@ export default function ScheduleBuilderPage() {
     [staffList],
   );
 
+  // Group active staff by role for the collapsible left panel (RN, LPN, …),
+  // keeping a fixed role order and dropping empty roles.
+  const staffByRole = useMemo(
+    () =>
+      ROLE_ORDER.map(
+        (role) => [role, activeStaff.filter((s) => s.roleType === role)] as const,
+      ).filter(([, members]) => members.length > 0),
+    [activeStaff],
+  );
+
+  const toggleRole = (role: StaffRoleType) => {
+    setCollapsedRoles((prev) => {
+      const next = new Set(prev);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
+  };
+
+  // Group active staff by their home unit so the assignment dropdown keeps units
+  // separate. Every unit's staff stay available for any shift — a short unit can
+  // still pull a worker from another unit. Units without a name sort last.
+  const staffByUnit = useMemo(() => {
+    const groups = new Map<string, StaffProfile[]>();
+    for (const s of activeStaff) {
+      const key = s.unit || "";
+      const arr = groups.get(key) ?? [];
+      arr.push(s);
+      groups.set(key, arr);
+    }
+    return Array.from(groups.entries()).sort((a, b) =>
+      (a[0] || "￿").localeCompare(b[0] || "￿"),
+    );
+  }, [activeStaff]);
+
   return (
     <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-4rem)]">
+      {/* Left Staff Sidebar — role-grouped, drag onto the calendar to assign */}
+      <div className="hidden lg:flex w-80 shrink-0 border-r border-border bg-card flex-col h-full overflow-hidden">
+        <div className="px-4 py-3.5 border-b border-border shrink-0">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <Users className="size-5" /> Staff
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1 leading-snug">
+            Tap a role to see its people. Drag anyone onto a day to assign a shift.
+          </p>
+        </div>
+        <div ref={staffListRef} className="flex-1 overflow-y-auto p-3 space-y-2">
+          {staffByRole.length === 0 ? (
+            <div className="text-sm text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
+              No active staff found.
+            </div>
+          ) : (
+            staffByRole.map(([role, members]) => {
+              const open = !collapsedRoles.has(role);
+              const colors = getRoleColors(role);
+              return (
+                <div key={role} className="rounded-lg border border-border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleRole(role)}
+                    aria-expanded={open}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-3 bg-muted/40 hover:bg-muted transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className={`text-sm font-bold px-2 py-0.5 rounded border ${colors.bg} ${colors.text} ${colors.border}`}>
+                        {getRoleLabel(role)}
+                      </span>
+                      <span className="text-sm font-medium text-muted-foreground">
+                        {members.length} {members.length === 1 ? "person" : "people"}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className={`size-5 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`}
+                    />
+                  </button>
+                  {open && (
+                    <div className="divide-y divide-border">
+                      {members.map((staff) => {
+                        const dot = getRoleDotColor(staff.roleType);
+                        const unitColor = getUnitColor(staff.unit);
+                        return (
+                          <div
+                            key={staff.userId}
+                            data-staff-id={staff.userId}
+                            data-staff-name={`${staff.firstName} ${staff.lastName}`}
+                            className="flex items-center gap-3 px-3 py-3 bg-background cursor-grab active:cursor-grabbing hover:bg-accent/5 transition-colors select-none"
+                          >
+                            <div
+                              className="size-10 rounded-full flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${dot}20` }}
+                            >
+                              <span className="text-sm font-bold" style={{ color: dot }}>
+                                {staff.firstName[0]}{staff.lastName[0]}
+                              </span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-foreground truncate">
+                                {staff.firstName} {staff.lastName}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate flex items-center gap-1.5 mt-0.5">
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: unitColor }} />
+                                  {staff.unit || "No unit"}
+                                </span>
+                                <span aria-hidden>·</span>
+                                <span className="truncate">{getEmploymentLabel(staff.employmentType)}</span>
+                              </p>
+                              {staff.phone?.trim() && (
+                                <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                                  <Phone className="size-3 shrink-0" /> {staff.phone}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
       {/* Calendar Area */}
       <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto max-h-full min-w-0 space-y-4">
         {/* Header */}
@@ -510,6 +652,25 @@ export default function ScheduleBuilderPage() {
           </div>
         </div>
 
+        {/* Unit color legend — fill color encodes the unit, left stripe the shift type */}
+        {uniqueUnits.length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+            <span className="font-semibold uppercase tracking-wider text-muted-foreground">Units</span>
+            {uniqueUnits.map((u) => (
+              <span key={u} className="inline-flex items-center gap-1.5 text-foreground">
+                <span
+                  className="size-3 rounded-sm border border-black/10"
+                  style={{ backgroundColor: getUnitColor(u) }}
+                />
+                {u || "No unit"}
+              </span>
+            ))}
+            <span className="ml-auto text-[11px] italic text-muted-foreground">
+              Left stripe = shift type
+            </span>
+          </div>
+        )}
+
         {/* Calendar */}
         <div className="flex-1 rounded-xl border border-border bg-card p-4 shadow-sm min-h-125">
           {isScheduleLoading ? (
@@ -530,6 +691,7 @@ export default function ScheduleBuilderPage() {
                 key={month}
                 headerToolbar={false}
                 events={calendarEvents}
+                eventOrder="unit,title"
                 eventClick={handleEventClick}
                 dateClick={handleDateClick}
                 editable={true}
@@ -566,34 +728,15 @@ export default function ScheduleBuilderPage() {
         </div>
       </div>
 
-      {/* Right Sidebar */}
+      {/* Right Sidebar — Schedule Health */}
       <div className="hidden lg:flex w-80 shrink-0 border-l border-border bg-card flex-col h-full overflow-hidden">
-        {/* Tabs */}
-        <div className="flex border-b border-border shrink-0">
-          <button
-            onClick={() => setSidebarTab("health")}
-            className={`flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
-              sidebarTab === "health"
-                ? "text-accent border-b-2 border-accent"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <AlertTriangle className="size-3.5" /> Schedule Health
-          </button>
-          <button
-            onClick={() => setSidebarTab("staff")}
-            className={`flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors ${
-              sidebarTab === "staff"
-                ? "text-accent border-b-2 border-accent"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Users className="size-3.5" /> Staff
-          </button>
+        <div className="px-4 py-3.5 border-b border-border shrink-0">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <AlertTriangle className="size-5" /> Schedule Health
+          </h2>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {sidebarTab === "health" && (
             <div className="space-y-4">
               <div>
                 <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2">
@@ -641,55 +784,6 @@ export default function ScheduleBuilderPage() {
                 </div>
               </div>
             </div>
-          )}
-
-          {sidebarTab === "staff" && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-3 italic">
-                Drag a worker onto a calendar date to create a shift.
-              </p>
-              <div ref={staffListRef} className="space-y-2">
-                {activeStaff.length === 0 ? (
-                  <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
-                    No active staff found.
-                  </div>
-                ) : (
-                  activeStaff.map((staff) => {
-                    const colors = getRoleColors(staff.roleType);
-                    const dot = getRoleDotColor(staff.roleType);
-                    return (
-                      <div
-                        key={staff.userId}
-                        data-staff-id={staff.userId}
-                        data-staff-name={`${staff.firstName} ${staff.lastName}`}
-                        className="flex items-center gap-2.5 rounded-lg border border-border bg-background px-3 py-2 cursor-grab active:cursor-grabbing hover:border-accent/50 hover:bg-accent/5 transition-colors select-none"
-                      >
-                        <div
-                          className="size-7 rounded-full flex items-center justify-center shrink-0"
-                          style={{ backgroundColor: `${dot}20` }}
-                        >
-                          <span className="text-[10px] font-bold" style={{ color: dot }}>
-                            {staff.firstName[0]}{staff.lastName[0]}
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-foreground truncate">
-                            {staff.firstName} {staff.lastName}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            {staff.unit || "No unit"}
-                          </p>
-                        </div>
-                        <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${colors.bg} ${colors.text} ${colors.border}`}>
-                          {getRoleLabel(staff.roleType)}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -874,10 +968,14 @@ export default function ScheduleBuilderPage() {
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 outline-none focus-visible:border-accent"
                 >
                   <option value="">-- Choose Worker --</option>
-                  {activeStaff.map((s) => (
-                    <option key={s.userId} value={s.userId}>
-                      {s.firstName} {s.lastName} ({s.roleType})
-                    </option>
+                  {staffByUnit.map(([unit, members]) => (
+                    <optgroup key={unit || "no-unit"} label={unit || "No unit"}>
+                      {members.map((s) => (
+                        <option key={s.userId} value={s.userId}>
+                          {s.firstName} {s.lastName} ({s.roleType})
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
