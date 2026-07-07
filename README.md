@@ -88,6 +88,27 @@ These tokens live as CSS variables in `globals.css`, layered on top of the shadc
 
 ## Project Status
 
+### ✅ Completed — July 7, 2026 (units, accessibility, staff contact fields — shipped to prod)
+
+Client-requested pass on the Schedule Builder + staff profiles. Frontend (Vercel) and backend (Railway) both deployed and verified live.
+
+**Schedule Builder — unit colors & grouping**
+- `lib/units.ts` (new) — `getUnitColor()` hashes any free-form unit string (LTC, LTN, ICU, …) into a fixed 14-color palette, so every unit gets a stable color with no config.
+- Calendar events now **fill by unit** with the **shift-type color as a left stripe** (combined encoding); added a unit color **legend** above the calendar.
+- Shifts **grouped by unit within each day** via FullCalendar `eventOrder="unit,title"` (no longer interleaved).
+
+**Schedule Builder — staff panel moved left + accessibility**
+- Staff list moved from the right tab to a dedicated **left panel**, **grouped by role** in collapsible sections (tap RN → its people show). Right sidebar is now **Schedule Health only** (tabs removed).
+- Sized up for older admins: larger text, bigger tap targets, more spacing. Each person shows **name · contract type · unit dot · phone**.
+- Assignment dropdown in the shift modal is **grouped by unit** (`optgroup`); dragging a worker now drops into the **currently-viewed unit** (so any staff can cover a short unit), falling back to their home unit on "All Units".
+
+**Staff profiles — new fields**
+- Added **Travel Staff** employment type (`travel`), **phone number**, and **scheduling notes** (free-text admin notes like "only works nights", "can work different units") — form fields (add/edit), profile display, and MSW mock handlers. `types/api.ts` `StaffProfile` gains optional `phone`/`notes`; `lib/roles.ts` gains the `travel` label.
+
+**Backend counterpart** (`medschedule-backend`, commit `f3fe967`)
+- `StaffProfile` Prisma model + types gain `phone`/`notes` columns (migration `20260707120000_add_staff_phone_notes`; also covered by the live `db push` deploy); `employmentType` enum accepts `travel`; create/update staff routes validate + persist the new fields.
+- Note: prod deploys via **Railway + Dockerfile `prisma db push`** (the `render.yaml` with `migrate deploy` is stale/unused). API base: `https://medschedule-api-production.up.railway.app/api`.
+
 ### ✅ Completed — June 17, 2026
 
 - Next.js 14 app initialized via `create-next-app` (App Router, TypeScript, Tailwind, `@/*` import alias)
