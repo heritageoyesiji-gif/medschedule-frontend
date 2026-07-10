@@ -88,6 +88,29 @@ These tokens live as CSS variables in `globals.css`, layered on top of the shadc
 
 ## Project Status
 
+### ✅ Completed — July 10, 2026 (two-week staff-row schedule grid — shipped to prod)
+
+Adopted the format of the client's printed "Scheduler Report" as a second Schedule Builder view. Frontend (Vercel, `485bd05`) and backend (Railway, `dad13d5`) deployed and verified live.
+
+**New "Staff · 2-week" grid view** — toggle beside `Month` in the Schedule Builder header (`viewMode` state).
+- `components/schedule/BiweeklyGrid.tsx` (new) — rows = staff, columns = the 14 days of a Monday-anchored biweekly period; a sticky staff-name first column, `overflow-x-auto` day columns, and a right-hand **total hours** column per person.
+- Cells render unit-colored shift chips with the shift-type left stripe (same encoding as the month calendar); **approved time-off** shows as an explicit off-marker.
+- **Overtime coloring**: per-person hours turn **amber (approaching)** / **red (over)** the biweekly cap, computed **client-side** across the window (the server's per-month `calcOvertimeRisks` undercounts periods that straddle a month boundary — see Known Gotchas).
+- **Full drag-and-drop**: drag a chip to another day/row to move or reassign (via `useUpdateShift`); drag a staff card from the left panel into a cell to create; **click any cell** to add/edit (a11y fallback — reuses the existing shift modal). Native HTML5 DnD in grid view; FullCalendar `Draggable` inits only in month view to avoid conflict.
+
+**Supporting code**
+- `lib/biweekly.ts` (new) — ports the backend's biweekly period math (`getMondayDate`, `getBiweeklyPeriodStart`, weeks paired (1,2),(3,4)… anchored to Jan 1) so grid totals match the server's Overtime Risk alerts; plus `getPeriodDays`, `shiftPeriod`, `monthsSpanned`, `getCurrentPeriodStart`, `formatPeriodLabel`, `sumHoursByStaff`. All UTC-based.
+- `hooks/useAdminSchedule.ts` — added `useBiweeklySchedule(facilityId, periodStart)`: fetches the ≤2 months a period spans (reusing `useFacilitySchedule`), merges + filters `shifts` to the 14 days. Mutations invalidate both spanned months.
+- `lib/mocks/handlers.ts` — added `overtime-config` mock + cross-month (Jun/Jul 2026) seed data so the merge is exercisable locally.
+- **Backend** (`medschedule-backend`): `travel: 80` added to `OVERTIME_DEFAULTS`; `EMPLOYMENT_TYPES` derives from it, so the overtime-config route now accepts `travel`.
+
+**Known gotcha**: the backend's `calcOvertimeRisks` only sees one calendar month per request, so a biweekly period crossing a month boundary is undercounted server-side. The grid deliberately recomputes totals client-side over the merged window; the server-side undercount was left as-is (out of scope for this pass).
+
+**Follow-up polish (client feedback: "packed" + toggle unclear)**
+- View toggle is now a recessed **segmented control** (muted track) so both segments read as buttons — active is accent-filled + raised, inactive is dark text with a hover state (`aria-pressed` added).
+- The left **Staff panel is hidden in grid view** (the grid already lists staff as rows, and clicking a row's empty cell adds a shift for that person — the panel's grid-drag was redundant), giving the 14-day grid ~288px more width. It still shows in month view.
+- Both sidebars narrowed `w-80 → w-72`.
+
 ### ✅ Completed — July 7, 2026 (units, accessibility, staff contact fields — shipped to prod)
 
 Client-requested pass on the Schedule Builder + staff profiles. Frontend (Vercel) and backend (Railway) both deployed and verified live.

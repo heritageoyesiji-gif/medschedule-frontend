@@ -517,8 +517,11 @@ export default function ScheduleBuilderPage() {
 
   return (
     <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-4rem)]">
-      {/* Left Staff Sidebar — role-grouped, drag onto the calendar to assign */}
-      <div className="hidden lg:flex w-80 shrink-0 border-r border-border bg-card flex-col h-full overflow-hidden">
+      {/* Left Staff Sidebar — role-grouped, drag onto the calendar to assign.
+          Month view only: the grid view already lists staff as rows, and the
+          panel isn't a drag source there, so hiding it gives the grid full width. */}
+      {viewMode === "month" && (
+      <div className="hidden lg:flex w-72 shrink-0 border-r border-border bg-card flex-col h-full overflow-hidden">
         <div className="px-4 py-3.5 border-b border-border shrink-0">
           <h2 className="text-base font-bold text-foreground flex items-center gap-2">
             <Users className="size-5" /> Staff
@@ -566,14 +569,6 @@ export default function ScheduleBuilderPage() {
                             key={staff.userId}
                             data-staff-id={staff.userId}
                             data-staff-name={`${staff.firstName} ${staff.lastName}`}
-                            draggable={viewMode === "grid"}
-                            onDragStart={(e) => {
-                              if (viewMode !== "grid") return;
-                              e.dataTransfer.setData(
-                                "text/plain",
-                                JSON.stringify({ kind: "staff", staffId: staff.userId }),
-                              );
-                            }}
                             className="flex items-center gap-3 px-3 py-3 bg-background cursor-grab active:cursor-grabbing hover:bg-accent/5 transition-colors select-none"
                           >
                             <div
@@ -613,6 +608,7 @@ export default function ScheduleBuilderPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* Calendar Area */}
       <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto max-h-full min-w-0 space-y-4">
@@ -621,13 +617,19 @@ export default function ScheduleBuilderPage() {
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-xl font-semibold text-foreground">Schedule Builder</h1>
 
-            {/* View toggle: month calendar vs two-week staff grid */}
-            <div className="flex items-center rounded-lg border border-border bg-card p-0.5 text-xs font-semibold">
+            {/* View toggle: month calendar vs two-week staff grid.
+                Recessed muted track so BOTH segments read as buttons; the active
+                one is raised (accent fill), the inactive one sits in a bordered
+                cell with a hover state. */}
+            <div className="flex items-center rounded-lg border border-border bg-muted p-0.5 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setViewMode("month")}
+                aria-pressed={viewMode === "month"}
                 className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition-colors ${
-                  viewMode === "month" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"
+                  viewMode === "month"
+                    ? "bg-accent text-white shadow-sm"
+                    : "text-foreground hover:bg-background/70"
                 }`}
               >
                 <Calendar className="size-3.5" /> Month
@@ -635,8 +637,11 @@ export default function ScheduleBuilderPage() {
               <button
                 type="button"
                 onClick={() => setViewMode("grid")}
+                aria-pressed={viewMode === "grid"}
                 className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition-colors ${
-                  viewMode === "grid" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"
+                  viewMode === "grid"
+                    ? "bg-accent text-white shadow-sm"
+                    : "text-foreground hover:bg-background/70"
                 }`}
               >
                 <LayoutGrid className="size-3.5" /> Staff · 2-week
@@ -869,7 +874,7 @@ export default function ScheduleBuilderPage() {
       </div>
 
       {/* Right Sidebar — Schedule Health */}
-      <div className="hidden lg:flex w-80 shrink-0 border-l border-border bg-card flex-col h-full overflow-hidden">
+      <div className="hidden lg:flex w-72 shrink-0 border-l border-border bg-card flex-col h-full overflow-hidden">
         <div className="px-4 py-3.5 border-b border-border shrink-0">
           <h2 className="text-base font-bold text-foreground flex items-center gap-2">
             <AlertTriangle className="size-5" /> Schedule Health
