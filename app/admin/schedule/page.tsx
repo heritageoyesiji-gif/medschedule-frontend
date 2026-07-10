@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Copy,
   Eye,
+  LayoutGrid,
   Phone,
   Plus,
   Send,
@@ -30,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   AIGenerateScheduleResponse,
+  useBiweeklySchedule,
   useConfirmAISchedule,
   useCopySchedule,
   useCreateShift,
@@ -41,6 +43,8 @@ import {
   useUpdateShift,
 } from "@/hooks/useAdminSchedule";
 import { useShiftConfig } from "@/hooks/useShiftConfig";
+import { useOvertimeConfig } from "@/hooks/useOvertimeConfig";
+import { useTimeOffRequests } from "@/hooks/useRequests";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { useFacilityStaff } from "@/hooks/useStaff";
@@ -54,15 +58,15 @@ import {
   shiftDurationHours,
   shiftMonth,
 } from "@/lib/schedule";
-import { getEmploymentLabel, getRoleColors, getRoleDotColor, getRoleLabel } from "@/lib/roles";
+import { formatPeriodLabel, getCurrentPeriodStart, shiftPeriod } from "@/lib/biweekly";
+import { getEmploymentLabel, getRoleColors, getRoleDotColor, getRoleLabel, ROLE_ORDER } from "@/lib/roles";
 import { getUnitColor } from "@/lib/units";
+import { BiweeklyGrid } from "@/components/schedule/BiweeklyGrid";
 import { QueryError } from "@/components/shared/QueryError";
 import type { Shift, ShiftType, ShiftTypeConfig, StaffProfile, StaffRoleType } from "@/types/api";
 
 type ModalMode = "add" | "edit" | "closed";
-
-// Fixed display order for the role-grouped staff list on the left.
-const ROLE_ORDER: StaffRoleType[] = ["RN", "LPN", "PSW", "LTCA", "doctor", "technician"];
+type ViewMode = "month" | "grid";
 
 function CalendarSkeleton() {
   return (
@@ -88,6 +92,9 @@ export default function ScheduleBuilderPage() {
   const facilityId = useActiveFacilityId();
 
   const [month, setMonth] = useState(getCurrentMonth);
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [periodStart, setPeriodStart] = useState(getCurrentPeriodStart);
+  const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   // Roles collapsed in the left staff list. Empty = all expanded (names visible
   // by default; tapping a role header collapses/expands its people).
@@ -122,6 +129,10 @@ export default function ScheduleBuilderPage() {
   const { data: scheduleData, isLoading: isScheduleLoading, isError: isScheduleError, refetch: refetchSchedule } =
     useFacilitySchedule(facilityId, month);
   const { data: shiftConfigs } = useShiftConfig(facilityId);
+  const { data: overtimeConfig } = useOvertimeConfig(facilityId);
+  const { data: timeOffData } = useTimeOffRequests(facilityId, "approved");
+  // Two-week window for the Staff grid — spans ≤2 months, merged client-side.
+  const biweekly = useBiweeklySchedule(facilityId, periodStart);
 
   const createShift = useCreateShift(facilityId, month);
   const updateShift = useUpdateShift(facilityId, month);
@@ -139,11 +150,18 @@ export default function ScheduleBuilderPage() {
   const isPublished = scheduleData?.published ?? false;
 
   const configs: ShiftTypeConfig[] = shiftConfigs ?? [];
+  const approvedTimeOff = timeOffData?.requests ?? [];
 
-  const uniqueUnits = useMemo(() => Array.from(new Set(shifts.map((s) => s.unit))), [shifts]);
+  // Unit filter/legend options come from whichever view is active.
+  const uniqueUnits = useMemo(
+    () => Array.from(new Set((viewMode === "grid" ? biweekly.shifts : shifts).map((s) => s.unit))),
+    [viewMode, biweekly.shifts, shifts],
+  );
 
-  // Wire up FullCalendar external dragging from the staff list
+  // Wire up FullCalendar external dragging from the staff list. Month view only —
+  // the grid view uses native HTML5 drag on the same cards, which would conflict.
   useEffect(() => {
+    if (viewMode !== "month") return;
     const el = staffListRef.current;
     if (!el) return;
     const draggable = new Draggable(el, {
@@ -160,7 +178,7 @@ export default function ScheduleBuilderPage() {
       },
     });
     return () => draggable.destroy();
-  }, [staffList, collapsedRoles]);
+  }, [staffList, collapsedRoles, viewMode]);
 
   const getConfigForType = (type: ShiftType) =>
     configs.find((c) => c.shiftType === type) ?? null;
@@ -240,6 +258,45 @@ export default function ScheduleBuilderPage() {
     setModalMode("add");
   };
 
+  // ── Grid-view interactions (reuse the same modal + mutations) ──────────────
+  // Empty cell / staff drop → prefilled Create modal for (staff, date).
+  const openAddFor = (staffId: string, date: string) => {
+    setEditingShift(null);
+    setShiftStaffId(staffId);
+    setShiftDate(date);
+    handleTypeChange("day");
+    setShiftUnit(
+      selectedUnit !== "all"
+        ? selectedUnit
+        : staffList.find((s) => s.userId === staffId)?.unit || "ICU",
+    );
+    setModalMode("add");
+  };
+
+  // Shift chip click → prefilled Edit modal.
+  const openEditShift = (shift: Shift) => {
+    setEditingShift(shift);
+    setShiftDate(shift.date);
+    setShiftType(shift.type);
+    setShiftUnit(shift.unit);
+    setShiftStaffId(shift.staff?.userId ?? "");
+    setShiftStart(shift.startTime);
+    setShiftEnd(shift.endTime);
+    setModalMode("edit");
+  };
+
+  // Shift chip dropped on another cell → move day and/or reassign.
+  const handleGridShiftDrop = async (shift: Shift, toStaffId: string, toDate: string) => {
+    if (shift.staff?.userId === toStaffId && shift.date === toDate) return;
+    try {
+      await updateShift.mutateAsync({ shiftId: shift.shiftId, date: toDate, staffId: toStaffId });
+      toast.success("Shift moved");
+      biweekly.refetch();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to move shift"));
+    }
+  };
+
   const handleSaveShift = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!facilityId) return;
@@ -280,6 +337,7 @@ export default function ScheduleBuilderPage() {
       }
       setModalMode("closed");
       void refetchSchedule();
+      biweekly.refetch();
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to save shift"));
     }
@@ -293,6 +351,7 @@ export default function ScheduleBuilderPage() {
       toast.success("Shift deleted");
       setModalMode("closed");
       void refetchSchedule();
+      biweekly.refetch();
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to delete shift"));
     }
@@ -507,6 +566,14 @@ export default function ScheduleBuilderPage() {
                             key={staff.userId}
                             data-staff-id={staff.userId}
                             data-staff-name={`${staff.firstName} ${staff.lastName}`}
+                            draggable={viewMode === "grid"}
+                            onDragStart={(e) => {
+                              if (viewMode !== "grid") return;
+                              e.dataTransfer.setData(
+                                "text/plain",
+                                JSON.stringify({ kind: "staff", staffId: staff.userId }),
+                              );
+                            }}
                             className="flex items-center gap-3 px-3 py-3 bg-background cursor-grab active:cursor-grabbing hover:bg-accent/5 transition-colors select-none"
                           >
                             <div
@@ -551,25 +618,59 @@ export default function ScheduleBuilderPage() {
       <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto max-h-full min-w-0 space-y-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4 bg-background">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-xl font-semibold text-foreground">Schedule Builder</h1>
+
+            {/* View toggle: month calendar vs two-week staff grid */}
+            <div className="flex items-center rounded-lg border border-border bg-card p-0.5 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setViewMode("month")}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition-colors ${
+                  viewMode === "month" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Calendar className="size-3.5" /> Month
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition-colors ${
+                  viewMode === "grid" ? "bg-accent text-white" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <LayoutGrid className="size-3.5" /> Staff · 2-week
+              </button>
+            </div>
+
+            {/* Navigator — month or biweekly period */}
             <div className="flex items-center rounded-lg border border-border bg-card p-0.5">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setMonth((m) => shiftMonth(m, -1))}
+                onClick={() =>
+                  viewMode === "grid"
+                    ? setPeriodStart((p) => shiftPeriod(p, -1))
+                    : setMonth((m) => shiftMonth(m, -1))
+                }
                 className="size-8 p-0"
-                aria-label="Previous month"
+                aria-label="Previous"
               >
                 <ChevronLeft className="size-4" />
               </Button>
-              <span className="text-xs font-semibold px-2">{formatMonthLabel(month)}</span>
+              <span className="text-xs font-semibold px-2 whitespace-nowrap">
+                {viewMode === "grid" ? formatPeriodLabel(periodStart) : formatMonthLabel(month)}
+              </span>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setMonth((m) => shiftMonth(m, 1))}
+                onClick={() =>
+                  viewMode === "grid"
+                    ? setPeriodStart((p) => shiftPeriod(p, 1))
+                    : setMonth((m) => shiftMonth(m, 1))
+                }
                 className="size-8 p-0"
-                aria-label="Next month"
+                aria-label="Next"
               >
                 <ChevronRight className="size-4" />
               </Button>
@@ -588,6 +689,8 @@ export default function ScheduleBuilderPage() {
               ))}
             </select>
 
+            {viewMode === "month" && (
+            <>
             <Button
               onClick={handleCopyFromLastMonth}
               size="sm"
@@ -649,6 +752,8 @@ export default function ScheduleBuilderPage() {
                 {publishSchedule.isPending ? "Publishing…" : "Publish Schedule"}
               </Button>
             )}
+            </>
+            )}
           </div>
         </div>
 
@@ -671,7 +776,41 @@ export default function ScheduleBuilderPage() {
           </div>
         )}
 
-        {/* Calendar */}
+        {/* Schedule view: month calendar or two-week staff grid */}
+        {viewMode === "grid" ? (
+          <div className="flex-1 min-h-125">
+            {biweekly.isLoading ? (
+              <CalendarSkeleton />
+            ) : biweekly.isError ? (
+              <div className="flex h-full items-center justify-center">
+                <QueryError
+                  message="Couldn't load the schedule for this period."
+                  onRetry={() => biweekly.refetch()}
+                />
+              </div>
+            ) : activeStaff.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground italic">
+                No active staff to show. Add staff to start building a schedule.
+              </div>
+            ) : (
+              <BiweeklyGrid
+                staff={activeStaff}
+                shifts={biweekly.shifts}
+                periodStart={periodStart}
+                overtimeConfig={overtimeConfig ?? []}
+                timeOff={approvedTimeOff}
+                selectedUnit={selectedUnit}
+                configs={configs}
+                dragOverCell={dragOverCell}
+                setDragOverCell={setDragOverCell}
+                onCellClick={openAddFor}
+                onShiftClick={openEditShift}
+                onShiftDrop={handleGridShiftDrop}
+                onStaffDrop={openAddFor}
+              />
+            )}
+          </div>
+        ) : (
         <div className="flex-1 rounded-xl border border-border bg-card p-4 shadow-sm min-h-125">
           {isScheduleLoading ? (
             <CalendarSkeleton />
@@ -726,6 +865,7 @@ export default function ScheduleBuilderPage() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Right Sidebar — Schedule Health */}

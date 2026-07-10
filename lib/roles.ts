@@ -13,6 +13,9 @@ export function getEmploymentLabel(type: EmploymentType | string): string {
   return (EMPLOYMENT_TYPE_LABELS as Record<string, string>)[type] ?? type;
 }
 
+// Canonical display order for role-grouped UIs (left staff panel, biweekly grid).
+export const ROLE_ORDER: StaffRoleType[] = ["RN", "LPN", "PSW", "LTCA", "doctor", "technician"];
+
 export const ROLE_TYPE_LABELS: Record<StaffRoleType, string> = {
   RN:          "RN",
   LPN:         "LPN",

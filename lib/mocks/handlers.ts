@@ -263,6 +263,19 @@ let shifts: InternalShift[] = [
   makeShift("shf_033", "2026-07-05", "day",     "General Ward", "usr_003"),
   makeShift("shf_034", "2026-07-07", "day",     "Emergency",    "usr_005"),
   makeShift("shf_035", "2026-07-08", "evening", "ICU",          "usr_001"),
+  // Cross-boundary biweekly period Jun 22 – Jul 5, 2026 — exercises the two-month
+  // merge and overtime coloring in the Staff (2-week) grid.
+  // usr_004 James Wilson (fulltime, 80h cap) → ~92h in-period → over (red).
+  makeShift("shf_040", "2026-06-23", "day",     "ICU",          "usr_004"),
+  makeShift("shf_041", "2026-06-24", "day",     "ICU",          "usr_004"),
+  makeShift("shf_042", "2026-06-27", "day",     "Emergency",    "usr_004"),
+  makeShift("shf_043", "2026-07-02", "day",     "ICU",          "usr_004"),
+  makeShift("shf_044", "2026-07-04", "day",     "ICU",          "usr_004"),
+  // usr_002 (fulltime, 80h cap) → ~76h in-period → approaching (amber).
+  makeShift("shf_045", "2026-06-23", "day",     "Emergency",    "usr_002"),
+  makeShift("shf_046", "2026-06-25", "day",     "Emergency",    "usr_002"),
+  makeShift("shf_047", "2026-07-04", "D8",      "ICU",          "usr_002"),
+  makeShift("shf_048", "2026-07-05", "day",     "ICU",          "usr_002"),
 ];
 
 let announcements: Announcement[] = [
@@ -517,6 +530,23 @@ export const handlers = [
     if (idx !== -1) STAFF_PROFILES[idx].status = "inactive";
     return ok({ userId: staffId, status: "inactive" });
   }),
+
+  // ── Overtime & shift config ────────────────────────────────────────────────
+
+  http.get(`${BASE}/facilities/:facilityId/overtime-config`, () =>
+    ok({
+      configs: [
+        { employmentType: "fulltime-permanent", biweeklyHours: 80 },
+        { employmentType: "fulltime-temporary", biweeklyHours: 80 },
+        { employmentType: "parttime-permanent", biweeklyHours: 60 },
+        { employmentType: "parttime-temporary", biweeklyHours: 60 },
+        { employmentType: "casual", biweeklyHours: null },
+        { employmentType: "travel", biweeklyHours: 80 },
+      ],
+    }),
+  ),
+
+  http.get(`${BASE}/facilities/:facilityId/shift-config`, () => ok({ configs: [] })),
 
   // ── Shifts & Schedules ─────────────────────────────────────────────────────
 

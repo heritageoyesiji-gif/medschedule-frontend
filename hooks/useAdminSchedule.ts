@@ -1,5 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
+import { getPeriodDays, monthsSpanned } from "@/lib/biweekly";
 import type { ApiResponse, ScheduleGap, OvertimeRisk, Shift, ShiftType } from "@/types/api";
 
 export const adminScheduleKeys = {
@@ -85,6 +86,36 @@ export function useFacilitySchedule(facilityId: string | null, month: string) {
     queryFn: () => fetchFacilitySchedule(facilityId!, month),
     enabled: Boolean(facilityId && month),
   });
+}
+
+// Two-week ("Staff View") schedule. The schedule endpoint is month-only, but a
+// Monday-anchored biweekly period can straddle two calendar months, so we fetch
+// each spanned month (1–2 requests, reusing the same month-keyed cache) and
+// merge + filter to the 14 day columns. Overtime totals are computed on the
+// client from these merged shifts — the server's overtimeRisks only see one
+// month and undercount boundary periods.
+export function useBiweeklySchedule(facilityId: string | null, periodStart: string) {
+  const months = monthsSpanned(periodStart);
+
+  const results = useQueries({
+    queries: months.map((month) => ({
+      queryKey: adminScheduleKeys.facilityMonth(facilityId ?? "", month),
+      queryFn: () => fetchFacilitySchedule(facilityId!, month),
+      enabled: Boolean(facilityId && month),
+    })),
+  });
+
+  const periodDays = new Set(getPeriodDays(periodStart));
+  const shifts = results
+    .flatMap((r) => r.data?.shifts ?? [])
+    .filter((s) => periodDays.has(s.date));
+
+  return {
+    shifts,
+    isLoading: results.some((r) => r.isLoading),
+    isError: results.some((r) => r.isError),
+    refetch: () => results.forEach((r) => void r.refetch()),
+  };
 }
 
 // 4.3 Create Single Shift (Admin - Manual)
