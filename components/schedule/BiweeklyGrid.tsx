@@ -17,9 +17,20 @@ type DragPayload =
   | { kind: "shift"; shiftId: string }
   | { kind: "staff"; staffId: string };
 
+type PreviewShift = {
+  staffId: string;
+  date: string;
+  type: string;
+  unit: string;
+  startTime: string;
+  endTime: string;
+};
+
 type Props = {
   staff: StaffProfile[];
   shifts: Shift[];
+  /** AI-generated preview shifts, not yet saved. Rendered as grey, non-interactive chips. */
+  previewShifts?: PreviewShift[];
   periodStart: string;
   overtimeConfig: OvertimeConfig[];
   timeOff: TimeOffRequest[];
@@ -55,6 +66,7 @@ function cellKey(staffId: string, date: string) {
 export function BiweeklyGrid({
   staff,
   shifts,
+  previewShifts = [],
   periodStart,
   overtimeConfig,
   timeOff,
@@ -101,6 +113,19 @@ export function BiweeklyGrid({
     }
     return map;
   }, [visibleShifts]);
+
+  const previewByCell = useMemo(() => {
+    const map = new Map<string, PreviewShift[]>();
+    const filtered =
+      selectedUnit === "all" ? previewShifts : previewShifts.filter((s) => s.unit === selectedUnit);
+    for (const s of filtered) {
+      const k = cellKey(s.staffId, s.date);
+      const arr = map.get(k);
+      if (arr) arr.push(s);
+      else map.set(k, [s]);
+    }
+    return map;
+  }, [previewShifts, selectedUnit]);
 
   const totals = useMemo(() => sumHoursByStaff(shifts), [shifts]);
 
@@ -220,6 +245,7 @@ export function BiweeklyGrid({
                 {days.map((d) => {
                   const key = cellKey(member.userId, d);
                   const cellShifts = shiftsByCell.get(key) ?? [];
+                  const cellPreview = previewByCell.get(key) ?? [];
                   const isOff = offCells.has(key);
                   const isDragOver = dragOverCell === key;
                   return (
@@ -235,55 +261,67 @@ export function BiweeklyGrid({
                       }}
                       onDrop={(e) => handleDrop(e, member.userId, d)}
                     >
-                      {cellShifts.length > 0 ? (
-                        <div className="flex flex-col gap-0.5">
-                          {cellShifts.map((s) => {
-                            const unitColor = getUnitColor(s.unit);
-                            const typeColor = getShiftColor(s.type);
-                            return (
-                              <button
-                                key={s.shiftId}
-                                type="button"
-                                draggable
-                                onDragStart={(e) =>
-                                  e.dataTransfer.setData(
-                                    "text/plain",
-                                    JSON.stringify({ kind: "shift", shiftId: s.shiftId } satisfies DragPayload),
-                                  )
-                                }
-                                onClick={() => onShiftClick(s)}
-                                title={`${s.unit} · ${getShiftTypeLabel(s.type, configs)} · ${s.startTime}–${s.endTime}`}
-                                className="w-full rounded px-1 py-1 text-left text-[11px] font-semibold text-white leading-tight cursor-grab active:cursor-grabbing"
-                                style={{ backgroundColor: unitColor, borderLeft: `4px solid ${typeColor}` }}
-                              >
-                                <span className="block truncate">{s.unit}</span>
-                                <span className="block truncate opacity-90">
-                                  {compactTime(s.startTime)}–{compactTime(s.endTime)}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onCellClick(member.userId, d)}
-                          aria-label={`Add shift for ${member.firstName} ${member.lastName} on ${d}`}
-                          className={`group flex h-11 w-full items-center justify-center rounded ${
-                            isOff ? "bg-muted/60" : "hover:bg-accent/10"
-                          }`}
-                        >
-                          {isOff ? (
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              Off
+                      <div className="flex flex-col gap-0.5">
+                        {cellShifts.map((s) => {
+                          const unitColor = getUnitColor(s.unit);
+                          const typeColor = getShiftColor(s.type);
+                          return (
+                            <button
+                              key={s.shiftId}
+                              type="button"
+                              draggable
+                              onDragStart={(e) =>
+                                e.dataTransfer.setData(
+                                  "text/plain",
+                                  JSON.stringify({ kind: "shift", shiftId: s.shiftId } satisfies DragPayload),
+                                )
+                              }
+                              onClick={() => onShiftClick(s)}
+                              title={`${s.unit} · ${getShiftTypeLabel(s.type, configs)} · ${s.startTime}–${s.endTime}`}
+                              className="w-full rounded px-1 py-1 text-left text-[11px] font-semibold text-white leading-tight cursor-grab active:cursor-grabbing"
+                              style={{ backgroundColor: unitColor, borderLeft: `4px solid ${typeColor}` }}
+                            >
+                              <span className="block truncate">{s.unit}</span>
+                              <span className="block truncate opacity-90">
+                                {compactTime(s.startTime)}–{compactTime(s.endTime)}
+                              </span>
+                            </button>
+                          );
+                        })}
+                        {cellPreview.map((s, idx) => (
+                          <div
+                            key={`preview-${idx}`}
+                            title={`[AI preview — not yet saved] ${s.unit} · ${s.startTime}–${s.endTime}`}
+                            className="w-full rounded px-1 py-1 text-left text-[11px] font-semibold text-white leading-tight opacity-70 border border-dashed border-white/60"
+                            style={{ backgroundColor: "#9CA3AF" }}
+                          >
+                            <span className="block truncate">AI · {s.unit}</span>
+                            <span className="block truncate opacity-90">
+                              {compactTime(s.startTime)}–{compactTime(s.endTime)}
                             </span>
-                          ) : (
-                            <span className="text-base leading-none text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
-                              +
-                            </span>
-                          )}
-                        </button>
-                      )}
+                          </div>
+                        ))}
+                        {cellShifts.length === 0 && cellPreview.length === 0 && (
+                          <button
+                            type="button"
+                            onClick={() => onCellClick(member.userId, d)}
+                            aria-label={`Add shift for ${member.firstName} ${member.lastName} on ${d}`}
+                            className={`group flex h-11 w-full items-center justify-center rounded ${
+                              isOff ? "bg-muted/60" : "hover:bg-accent/10"
+                            }`}
+                          >
+                            {isOff ? (
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Off
+                              </span>
+                            ) : (
+                              <span className="text-base leading-none text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
+                                +
+                              </span>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   );
                 })}

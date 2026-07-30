@@ -2,11 +2,12 @@ import type { Shift } from "@/types/api";
 
 // Biweekly pay-period math, ported from the backend so grid hour-totals line up
 // with the server's Overtime Risk alerts (see medschedule-backend
-// src/db/shifts.ts getMondayDate / getBiweeklyPeriodStart).
+// src/db/shifts.ts getSundayDate / getBiweeklyPeriodStart).
 //
 // All arithmetic uses UTC Date methods so results are deterministic regardless
 // of the browser timezone and match the (UTC) production server. Date strings
-// are "YYYY-MM-DD"; periods are anchored to Mondays.
+// are "YYYY-MM-DD"; periods are anchored to Sundays and run Sunday → Saturday
+// (14 days).
 
 const MS_PER_DAY = 24 * 3600 * 1000;
 const MS_PER_WEEK = 7 * MS_PER_DAY;
@@ -19,29 +20,28 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Monday that starts the ISO week containing dateStr. */
-export function getMondayDate(dateStr: string): string {
+/** Sunday that starts the week containing dateStr. */
+export function getSundayDate(dateStr: string): string {
   const d = parseUTC(dateStr);
   const day = d.getUTCDay(); // 0=Sun … 6=Sat
-  const offset = day === 0 ? -6 : 1 - day;
-  d.setUTCDate(d.getUTCDate() + offset);
+  d.setUTCDate(d.getUTCDate() - day);
   return isoDate(d);
 }
 
 /**
- * Monday that starts the biweekly period containing dateStr. Weeks pair up as
+ * Sunday that starts the biweekly period containing dateStr. Weeks pair up as
  * (1,2),(3,4),… anchored to Jan 1 of that year, so a period never straddles a
- * year but may straddle a month.
+ * year but may straddle a month. Periods run Sunday → Saturday (14 days).
  */
 export function getBiweeklyPeriodStart(dateStr: string): string {
-  const monday = parseUTC(getMondayDate(dateStr));
-  const yearStart = Date.UTC(monday.getUTCFullYear(), 0, 1);
-  const weekNum = Math.floor((monday.getTime() - yearStart) / MS_PER_WEEK);
-  if (weekNum % 2 === 1) monday.setUTCDate(monday.getUTCDate() - 7);
-  return isoDate(monday);
+  const sunday = parseUTC(getSundayDate(dateStr));
+  const yearStart = Date.UTC(sunday.getUTCFullYear(), 0, 1);
+  const weekNum = Math.floor((sunday.getTime() - yearStart) / MS_PER_WEEK);
+  if (weekNum % 2 === 1) sunday.setUTCDate(sunday.getUTCDate() - 7);
+  return isoDate(sunday);
 }
 
-/** The 14 "YYYY-MM-DD" day columns of a period, given its start Monday. */
+/** The 14 "YYYY-MM-DD" day columns of a period, given its start Sunday. */
 export function getPeriodDays(periodStart: string): string[] {
   const start = parseUTC(periodStart);
   return Array.from({ length: 14 }, (_, i) => {
