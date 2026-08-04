@@ -48,6 +48,7 @@ import {
 } from "@/lib/schedule";
 import { formatPeriodLabel, getCurrentPeriodStart, getPeriodDays, shiftPeriod } from "@/lib/biweekly";
 import { getUnitColor } from "@/lib/units";
+import { getRoleTabLabel, ROLE_TABS, type RoleTab } from "@/lib/roles";
 import { BiweeklyGrid } from "@/components/schedule/BiweeklyGrid";
 import { QueryError } from "@/components/shared/QueryError";
 import type { Shift, ShiftType, ShiftTypeConfig, StaffProfile } from "@/types/api";
@@ -80,6 +81,7 @@ export default function ScheduleBuilderPage() {
   const [periodStart, setPeriodStart] = useState(getCurrentPeriodStart);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
+  const [selectedRole, setSelectedRole] = useState<RoleTab>(ROLE_TABS[0]);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [aiPreview, setAiPreview] = useState<AIGenerateScheduleResponse | null>(null);
 
@@ -310,18 +312,50 @@ export default function ScheduleBuilderPage() {
     [staffList],
   );
 
+  // Staff shown in the grid for the currently selected role tab. "casual" is a
+  // cross-cutting filter on employmentType, not a StaffRoleType, so it's
+  // checked separately — everyone else is filtered by roleType. RN and LPN
+  // (etc.) never mix: only one role's staff render as grid rows at a time.
+  const staffInRole = useMemo(
+    () =>
+      activeStaff.filter((s) =>
+        selectedRole === "casual" ? s.employmentType === "casual" : s.roleType === selectedRole,
+      ),
+    [activeStaff, selectedRole],
+  );
+
+  // Per-tab counts for the small badge next to each role's label.
+  const roleTabCounts = useMemo(() => {
+    const map = new Map<RoleTab, number>();
+    for (const tab of ROLE_TABS) {
+      map.set(
+        tab,
+        activeStaff.filter((s) =>
+          tab === "casual" ? s.employmentType === "casual" : s.roleType === tab,
+        ).length,
+      );
+    }
+    return map;
+  }, [activeStaff]);
+
   // AI-generated preview shifts that fall inside the period currently shown in
   // the grid, so "review the preview, then confirm" still works with the
   // FullCalendar month view gone. Preview shifts outside this period were
   // still generated (they'll appear once you navigate to their period) — the
-  // preview itself is scoped to the whole month on the backend.
+  // preview itself is scoped to the whole month on the backend. Also scoped
+  // to the selected role tab, same as the real shifts in the grid, so a
+  // preview RN shift doesn't show while viewing the LPN tab.
   const previewShiftsInPeriod = useMemo(() => {
     if (!aiPreview?.generatedShifts) return [];
     const periodDays = new Set(getPeriodDays(periodStart));
+    const roleStaffIds = new Set(staffInRole.map((s) => s.userId));
     return aiPreview.generatedShifts.filter(
-      (s) => periodDays.has(s.date) && (selectedUnit === "all" || s.unit === selectedUnit),
+      (s) =>
+        periodDays.has(s.date) &&
+        (selectedUnit === "all" || s.unit === selectedUnit) &&
+        roleStaffIds.has(s.staffId),
     );
-  }, [aiPreview, periodStart, selectedUnit]);
+  }, [aiPreview, periodStart, selectedUnit, staffInRole]);
 
   // Group active staff by their home unit so the assignment dropdown keeps units
   // separate. Every unit's staff stay available for any shift — a short unit can
@@ -450,6 +484,31 @@ export default function ScheduleBuilderPage() {
           </div>
         </div>
 
+        {/* Role tabs — RN / LPN / PSW / LTCA / doctor / technician / Casual.
+            Casual is a cross-cutting employmentType filter, not a 7th role: a
+            casual RN shows under both RN and Casual. Only one tab's staff
+            render as grid rows at a time — roles are never mixed together. */}
+        <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-muted p-1">
+          {ROLE_TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setSelectedRole(tab)}
+              aria-pressed={selectedRole === tab}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                selectedRole === tab
+                  ? "bg-accent text-white shadow-sm"
+                  : "text-foreground hover:bg-background/70"
+              }`}
+            >
+              {getRoleTabLabel(tab)}
+              <span className={`ml-1.5 ${selectedRole === tab ? "text-white/80" : "text-muted-foreground"}`}>
+                {roleTabCounts.get(tab) ?? 0}
+              </span>
+            </button>
+          ))}
+        </div>
+
         {/* Unit color legend — fill color encodes the unit, left stripe the shift type */}
         {uniqueUnits.length > 0 && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
@@ -484,9 +543,13 @@ export default function ScheduleBuilderPage() {
             <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground italic">
               No active staff to show. Add staff to start building a schedule.
             </div>
+          ) : staffInRole.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground italic">
+              No {getRoleTabLabel(selectedRole)} staff. Try another tab, or add staff under this role.
+            </div>
           ) : (
             <BiweeklyGrid
-              staff={activeStaff}
+              staff={staffInRole}
               shifts={biweekly.shifts}
               previewShifts={previewShiftsInPeriod}
               periodStart={periodStart}

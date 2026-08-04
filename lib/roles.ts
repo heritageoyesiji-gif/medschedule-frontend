@@ -54,3 +54,16 @@ export function getRoleColors(role: StaffRoleType) {
 export function getRoleDotColor(role: StaffRoleType): string {
   return ROLE_TYPE_DOT_COLOR[role] ?? "#6B7280";
 }
+
+// Role tabs for the Scheduler. "casual" is not a StaffRoleType — it's a
+// cross-cutting filter on employmentType === "casual", layered on top of the
+// 6 clinical roles rather than replacing any of them (a casual-employed RN
+// still shows up under RN too; the Casual tab is a different lens on the
+// same staff, not a 7th mutually-exclusive role).
+export type RoleTab = StaffRoleType | "casual";
+
+export const ROLE_TABS: RoleTab[] = [...ROLE_ORDER, "casual"];
+
+export function getRoleTabLabel(tab: RoleTab): string {
+  return tab === "casual" ? "Casual" : getRoleLabel(tab);
+}
