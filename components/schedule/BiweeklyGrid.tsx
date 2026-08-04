@@ -42,6 +42,7 @@ type Props = {
   onShiftClick: (shift: Shift) => void;
   onShiftDrop: (shift: Shift, toStaffId: string, toDate: string) => void;
   onStaffDrop: (staffId: string, date: string) => void;
+  onStaffNameClick: (staff: StaffProfile) => void;
 };
 
 const todayStr = () => {
@@ -78,6 +79,7 @@ export function BiweeklyGrid({
   onShiftClick,
   onShiftDrop,
   onStaffDrop,
+  onStaffNameClick,
 }: Props) {
   const days = useMemo(() => getPeriodDays(periodStart), [periodStart]);
   const today = todayStr();
@@ -217,9 +219,14 @@ export function BiweeklyGrid({
               <tr key={member.userId} className="hover:bg-muted/20">
                 <th className="sticky left-0 z-10 bg-card px-3 py-2.5 text-left align-top min-w-50 border-r border-border">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground truncate">
+                    <button
+                      type="button"
+                      onClick={() => onStaffNameClick(member)}
+                      className="text-sm font-semibold text-foreground truncate hover:text-accent hover:underline underline-offset-2"
+                      title={`View details for ${member.firstName} ${member.lastName}`}
+                    >
                       {member.firstName} {member.lastName}
-                    </span>
+                    </button>
                     <span
                       className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${roleColors.bg} ${roleColors.text} ${roleColors.border}`}
                     >

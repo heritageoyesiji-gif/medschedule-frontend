@@ -10,10 +10,14 @@ import {
   ChevronRight,
   Copy,
   Eye,
+  Mail,
+  Phone,
   Plus,
   Send,
   Settings,
   Trash2,
+  User,
+  Users,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,7 +52,7 @@ import {
 } from "@/lib/schedule";
 import { formatPeriodLabel, getCurrentPeriodStart, getPeriodDays, shiftPeriod } from "@/lib/biweekly";
 import { getUnitColor } from "@/lib/units";
-import { getRoleTabLabel, ROLE_TABS, type RoleTab } from "@/lib/roles";
+import { getEmploymentLabel, getRoleColors, getRoleLabel, getRoleTabLabel, ROLE_TABS, type RoleTab } from "@/lib/roles";
 import { BiweeklyGrid } from "@/components/schedule/BiweeklyGrid";
 import { QueryError } from "@/components/shared/QueryError";
 import type { Shift, ShiftType, ShiftTypeConfig, StaffProfile } from "@/types/api";
@@ -86,6 +90,7 @@ export default function ScheduleBuilderPage() {
   const [aiPreview, setAiPreview] = useState<AIGenerateScheduleResponse | null>(null);
 
   const [modalMode, setModalMode] = useState<ModalMode>("closed");
+  const [selectedStaffDetails, setSelectedStaffDetails] = useState<StaffProfile | null>(null);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [shiftDate, setShiftDate] = useState("");
   const [shiftType, setShiftType] = useState<ShiftType>("day");
@@ -563,6 +568,7 @@ export default function ScheduleBuilderPage() {
               onShiftClick={openEditShift}
               onShiftDrop={handleGridShiftDrop}
               onStaffDrop={openAddFor}
+              onStaffNameClick={setSelectedStaffDetails}
             />
           )}
         </div>
@@ -848,6 +854,117 @@ export default function ScheduleBuilderPage() {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Details Panel — opened by clicking a staff member's name in the
+          grid. Deliberately lighter than the full Staff-management page's
+          panel (no Edit/Deactivate actions — that's Staff management's job,
+          not the Scheduler's); this is a quick-reference view plus a way to
+          reach the person. */}
+      {selectedStaffDetails && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="w-full sm:max-w-sm rounded-xl border border-border bg-card shadow-lg">
+            <div className="p-6 space-y-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">
+                    {selectedStaffDetails.firstName} {selectedStaffDetails.lastName}
+                  </h2>
+                  <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                    ID: {selectedStaffDetails.userId}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStaffDetails(null)}
+                  className="rounded-lg p-2 hover:bg-muted"
+                  aria-label="Close details"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <Mail className="size-4 shrink-0" />
+                  <span className="text-foreground truncate">{selectedStaffDetails.email}</span>
+                </div>
+                {selectedStaffDetails.phone?.trim() && (
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Phone className="size-4 shrink-0" />
+                    <a
+                      href={`tel:${selectedStaffDetails.phone}`}
+                      className="text-foreground hover:text-accent"
+                    >
+                      {selectedStaffDetails.phone}
+                    </a>
+                  </div>
+                )}
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <User className="size-4 shrink-0" />
+                  <span className="text-foreground flex items-center gap-2 flex-wrap">
+                    {(() => {
+                      const c = getRoleColors(selectedStaffDetails.roleType);
+                      return (
+                        <span
+                          className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${c.bg} ${c.text} ${c.border}`}
+                        >
+                          {getRoleLabel(selectedStaffDetails.roleType)}
+                        </span>
+                      );
+                    })()}
+                    <span className="text-muted-foreground text-xs">
+                      ({getEmploymentLabel(selectedStaffDetails.employmentType)})
+                    </span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <Users className="size-4 shrink-0" />
+                  <span className="text-foreground">Unit: {selectedStaffDetails.unit || "—"}</span>
+                </div>
+              </div>
+
+              {selectedStaffDetails.notes?.trim() && (
+                <div>
+                  <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-1.5">
+                    Scheduling Notes
+                  </h3>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-sm text-amber-900 whitespace-pre-wrap">
+                    {selectedStaffDetails.notes}
+                  </div>
+                </div>
+              )}
+
+              {selectedStaffDetails.qualifications?.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-1.5">
+                    Qualifications
+                  </h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedStaffDetails.qualifications.map((q, i) => (
+                      <span
+                        key={i}
+                        className="text-xs bg-muted px-2.5 py-1 rounded-md text-foreground font-medium"
+                      >
+                        {q}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Feature 4 — mailto only. No in-app chat/messaging/notifications;
+                  this just hands off to the user's own default mail client. */}
+              <div className="pt-2 border-t border-border">
+                <a href={`mailto:${selectedStaffDetails.email}`} className="block">
+                  <Button type="button" className="w-full gap-2">
+                    <Mail className="size-4" /> Send Message
+                  </Button>
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       )}
