@@ -86,6 +86,7 @@ export default function ScheduleBuilderPage() {
 
   const [periodStart, setPeriodStart] = useState(getCurrentPeriodStart);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
+  const [isHealthOpen, setIsHealthOpen] = useState(true);
   const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [selectedRole, setSelectedRole] = useState<RoleTab>(ROLE_TABS[0]);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
@@ -598,13 +599,26 @@ export default function ScheduleBuilderPage() {
         </div>
       </div>
 
-      {/* Right Sidebar — Schedule Health */}
-      <div className="hidden lg:flex w-72 shrink-0 border-l border-border bg-card flex-col h-full overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-border shrink-0">
-          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-            <AlertTriangle className="size-5" /> Schedule Health
-          </h2>
-        </div>
+      {/* Right Sidebar — Schedule Health, collapsible to reclaim width for the
+          grid (the grid needs all the horizontal room it can get for the
+          two-week layout to stay scroll-free). Collapsed state keeps a small
+          gaps/risks indicator so nothing important is silently hidden. */}
+      {isHealthOpen ? (
+        <div className="hidden lg:flex w-72 shrink-0 border-l border-border bg-card flex-col h-full overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-border shrink-0 flex items-center justify-between gap-2">
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <AlertTriangle className="size-5" /> Schedule Health
+            </h2>
+            <button
+              type="button"
+              onClick={() => setIsHealthOpen(false)}
+              className="rounded-md p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
+              aria-label="Collapse Schedule Health"
+              title="Collapse"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
 
 
         <div className="flex-1 overflow-y-auto p-4">
@@ -685,6 +699,23 @@ export default function ScheduleBuilderPage() {
             </div>
         </div>
       </div>
+      ) : (
+        <div className="hidden lg:flex w-10 shrink-0 border-l border-border bg-card flex-col items-center py-3 h-full">
+          <button
+            type="button"
+            onClick={() => setIsHealthOpen(true)}
+            className="rounded-md p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground relative"
+            aria-label="Expand Schedule Health"
+            title="Schedule Health"
+          >
+            <AlertTriangle className="size-4" />
+            {(gaps.length > 0 || risks.length > 0) && (
+              <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-red-500" />
+            )}
+          </button>
+          <ChevronLeft className="size-3.5 text-muted-foreground/50 mt-2" />
+        </div>
+      )}
 
       {/* AI Assistant Modal */}
       {isAiPanelOpen && (
