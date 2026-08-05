@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import type {
+  AdminCreateTimeOffRequest,
   ApiResponse,
   RequestStatus,
   StaffTimeOffRequestsData,
@@ -198,6 +199,32 @@ export function useSubmitTimeOffRequest(staffId: string | null) {
         });
         void queryClient.invalidateQueries({
           queryKey: requestKeys.allTimeOff,
+        });
+      }
+    },
+  });
+}
+
+// 7.1b Create Time Off / Leave on behalf of a staff member (admin)
+export function useAdminCreateTimeOff(facilityId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: AdminCreateTimeOffRequest) => {
+      const { data } = await api.post<ApiResponse<TimeOffRequest & { staffId: string }>>(
+        `/facilities/${facilityId}/time-off`,
+        payload,
+      );
+      if (!data.success || !data.data) {
+        throw new Error(data.error?.message ?? "Failed to create leave");
+      }
+      return data.data;
+    },
+    onSuccess: (_, variables) => {
+      if (facilityId) {
+        void queryClient.invalidateQueries({ queryKey: requestKeys.allTimeOff });
+        void queryClient.invalidateQueries({
+          queryKey: requestKeys.staffTimeOff(variables.staffId),
         });
       }
     },

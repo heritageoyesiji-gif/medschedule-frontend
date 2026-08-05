@@ -17,7 +17,10 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveFacilityId } from "@/hooks/useActiveFacility";
 import { getRoleLabel } from "@/lib/roles";
+import { getLeaveTypeLabel, LEAVE_TYPES } from "@/lib/leaveTypes";
+import { useFacilityStaff } from "@/hooks/useStaff";
 import {
+  useAdminCreateTimeOff,
   useRespondToSwapRequest,
   useRespondToTimeOffRequest,
   useSwapRequests,
@@ -26,7 +29,7 @@ import {
 import { getApiErrorMessage } from "@/lib/apiError";
 import { formatShiftDate } from "@/lib/schedule";
 import { QueryError } from "@/components/shared/QueryError";
-import type { RequestStatus, SwapRequest, TimeOffRequest } from "@/types/api";
+import type { LeaveType, RequestStatus, SwapRequest, TimeOffRequest } from "@/types/api";
 
 type TabType = "time-off" | "swaps";
 
@@ -38,6 +41,18 @@ export default function RequestManagementPage() {
   const [activeTab, setActiveTab] = useState<TabType>("time-off");
   const [statusFilter, setStatusFilter] = useState<RequestStatus | "all">("pending");
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [isCreateLeaveOpen, setIsCreateLeaveOpen] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    staffId: "",
+    leaveType: "vacation" as LeaveType,
+    startDate: "",
+    endDate: "",
+    reason: "",
+    status: "approved" as "approved" | "pending",
+  });
+
+  const { data: staffData } = useFacilityStaff(facilityId);
+  const activeStaff = (staffData?.staff ?? []).filter((s) => s.status === "active");
 
   // Queries
   const {
@@ -57,6 +72,7 @@ export default function RequestManagementPage() {
   // Mutations
   const respondToTimeOff = useRespondToTimeOffRequest(facilityId);
   const respondToSwap = useRespondToSwapRequest(facilityId);
+  const createLeave = useAdminCreateTimeOff(facilityId);
 
   const handleRespondTimeOff = async (
     requestId: string,
@@ -110,6 +126,45 @@ export default function RequestManagementPage() {
     setNotes((prev) => ({ ...prev, [id]: value }));
   };
 
+  const resetLeaveForm = () =>
+    setLeaveForm({
+      staffId: "",
+      leaveType: "vacation",
+      startDate: "",
+      endDate: "",
+      reason: "",
+      status: "approved",
+    });
+
+  const handleCreateLeave = async () => {
+    if (!leaveForm.staffId || !leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason.trim()) {
+      toast.error("Please fill in staff, dates, and a reason.");
+      return;
+    }
+    if (leaveForm.endDate < leaveForm.startDate) {
+      toast.error("End date must be on or after start date.");
+      return;
+    }
+    try {
+      await createLeave.mutateAsync({
+        staffId: leaveForm.staffId,
+        startDate: leaveForm.startDate,
+        endDate: leaveForm.endDate,
+        reason: leaveForm.reason,
+        leaveType: leaveForm.leaveType,
+        status: leaveForm.status,
+      });
+      toast.success(
+        leaveForm.status === "approved" ? "Leave recorded" : "Leave request created (pending)",
+      );
+      resetLeaveForm();
+      setIsCreateLeaveOpen(false);
+      void refetchTimeOff();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to create leave"));
+    }
+  };
+
   // Status Border Colors for Status-First Cards
   const getStatusBorderClass = (status: RequestStatus) => {
     switch (status) {
@@ -148,17 +203,26 @@ export default function RequestManagementPage() {
             Review and approve staff schedule swaps and time off requests.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            void refetchTimeOff();
-            void refetchSwaps();
-          }}
-          className="gap-2"
-        >
-          <RefreshCw className="size-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => setIsCreateLeaveOpen(true)}
+            className="gap-2"
+          >
+            <CalendarDays className="size-4" /> Create Leave
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void refetchTimeOff();
+              void refetchSwaps();
+            }}
+            className="gap-2"
+          >
+            <RefreshCw className="size-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Tabs & Filters bar */}
@@ -277,6 +341,11 @@ export default function RequestManagementPage() {
                       >
                         {req.status}
                       </span>
+                      {req.leaveType && (
+                        <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-muted text-foreground border border-border">
+                          {getLeaveTypeLabel(req.leaveType)}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
@@ -532,6 +601,143 @@ export default function RequestManagementPage() {
           ))
         )}
       </div>
+
+      {/* Create Leave modal (Feature 5) — scheduler manually creating leave,
+          or creating it on behalf of a staff member. Reuses the same
+          TimeOffRequest architecture/table as staff self-submission; the only
+          difference is who can call it and the default status. */}
+      {isCreateLeaveOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="w-full sm:max-w-md rounded-xl border border-border bg-card shadow-lg">
+            <div className="p-6 space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground">Create Leave</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Record leave directly, or create it on a staff member&apos;s behalf.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreateLeaveOpen(false);
+                    resetLeaveForm();
+                  }}
+                  className="rounded-lg p-2 hover:bg-muted"
+                  aria-label="Close"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="leave-staff">Staff member</Label>
+                <select
+                  id="leave-staff"
+                  value={leaveForm.staffId}
+                  onChange={(e) => setLeaveForm((f) => ({ ...f, staffId: e.target.value }))}
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-accent"
+                >
+                  <option value="">Select staff…</option>
+                  {activeStaff.map((s) => (
+                    <option key={s.userId} value={s.userId}>
+                      {s.firstName} {s.lastName} — {getRoleLabel(s.roleType)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="leave-type">Leave type</Label>
+                  <select
+                    id="leave-type"
+                    value={leaveForm.leaveType}
+                    onChange={(e) =>
+                      setLeaveForm((f) => ({ ...f, leaveType: e.target.value as LeaveType }))
+                    }
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-accent"
+                  >
+                    {LEAVE_TYPES.map((lt) => (
+                      <option key={lt.value} value={lt.value}>
+                        {lt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="leave-status">Record as</Label>
+                  <select
+                    id="leave-status"
+                    value={leaveForm.status}
+                    onChange={(e) =>
+                      setLeaveForm((f) => ({ ...f, status: e.target.value as "approved" | "pending" }))
+                    }
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-accent"
+                  >
+                    <option value="approved">Already approved</option>
+                    <option value="pending">Still pending</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="leave-start">Start date</Label>
+                  <input
+                    id="leave-start"
+                    type="date"
+                    value={leaveForm.startDate}
+                    onChange={(e) => setLeaveForm((f) => ({ ...f, startDate: e.target.value }))}
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-accent"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="leave-end">End date</Label>
+                  <input
+                    id="leave-end"
+                    type="date"
+                    value={leaveForm.endDate}
+                    onChange={(e) => setLeaveForm((f) => ({ ...f, endDate: e.target.value }))}
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="leave-reason">Reason</Label>
+                <textarea
+                  id="leave-reason"
+                  rows={2}
+                  value={leaveForm.reason}
+                  onChange={(e) => setLeaveForm((f) => ({ ...f, reason: e.target.value }))}
+                  placeholder="Brief reason"
+                  className="flex w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-accent"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={handleCreateLeave}
+                  disabled={createLeave.isPending}
+                  className="flex-1"
+                >
+                  {createLeave.isPending ? "Saving…" : "Create Leave"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsCreateLeaveOpen(false);
+                    resetLeaveForm();
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

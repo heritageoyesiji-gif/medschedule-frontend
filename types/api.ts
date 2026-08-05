@@ -222,11 +222,14 @@ export type SwapRequest = {
   };
 };
 
+export type LeaveType = "vacation" | "sick" | "lieu";
+
 export type TimeOffRequest = {
   requestId: string;
   startDate: string;
   endDate: string;
   reason: string;
+  leaveType: LeaveType | null; // null for requests submitted before this field existed
   status: RequestStatus;
   adminNote: string | null;
   submittedAt: string;
@@ -241,6 +244,17 @@ export type SubmitTimeOffRequest = {
   startDate: string;
   endDate: string;
   reason: string;
+  leaveType: LeaveType;
+};
+
+// Admin creating leave on behalf of a staff member. Same shape as
+// SubmitTimeOffRequest plus admin-only fields: status lets the admin record
+// leave as already-decided (default "approved") instead of leaving it
+// pending, since an admin creating an entry directly is, in effect, the
+// decision.
+export type AdminCreateTimeOffRequest = SubmitTimeOffRequest & {
+  status?: "pending" | "approved";
+  adminNote?: string;
 };
 
 export type SubmitTimeOffResponse = {
@@ -390,4 +404,8 @@ export type OvertimeRisk = {
   projectedHours: number;
   threshold: number;
   message: string;
+  periodStart: string;
+  approvedBy: string | null;
+  approvedByName: string | null;
+  approvedAt: string | null;
 };

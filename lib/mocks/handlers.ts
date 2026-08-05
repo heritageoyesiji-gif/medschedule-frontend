@@ -341,12 +341,22 @@ let swapRequests: SwapRequest[] = [
   },
 ];
 
+let overtimeApprovals: {
+  facilityId: string;
+  userId: string;
+  periodStart: string;
+  approvedBy: string;
+  approvedByName: string;
+  approvedAt: string;
+}[] = [];
+
 let timeOffRequests: TimeOffRequest[] = [
   {
     requestId: "tof_001",
     startDate: "2026-07-10",
     endDate: "2026-07-14",
     reason: "Planned surgery recovery — pre-approved by HR",
+    leaveType: "sick",
     status: "pending",
     adminNote: null,
     submittedAt: "2026-06-18T11:00:00Z",
@@ -357,6 +367,7 @@ let timeOffRequests: TimeOffRequest[] = [
     startDate: "2026-07-03",
     endDate: "2026-07-04",
     reason: "Family event out of province",
+    leaveType: "vacation",
     status: "pending",
     adminNote: null,
     submittedAt: "2026-06-20T09:45:00Z",
@@ -550,10 +561,22 @@ export const handlers = [
 
   // ── Shifts & Schedules ─────────────────────────────────────────────────────
 
-  http.get(`${BASE}/facilities/:facilityId/schedule`, ({ request }) => {
+  http.get(`${BASE}/facilities/:facilityId/schedule`, ({ request, params }) => {
+    const { facilityId } = params as { facilityId: string };
     const url = new URL(request.url);
     const month = url.searchParams.get("month") ?? "";
     const monthShifts = shifts.filter((s) => s.date.startsWith(month));
+    const mockRisks = month.startsWith("2026-06")
+      ? [
+          {
+            userId: "usr_004",
+            projectedHours: 86,
+            threshold: 80,
+            message: "James Wilson projected 86 hrs in the biweekly period starting 2026-06-22 (limit 80 hrs)",
+            periodStart: "2026-06-22",
+          },
+        ]
+      : [];
     return ok({
       facilityId: "fac_001",
       month,
@@ -562,10 +585,59 @@ export const handlers = [
       gaps: month.startsWith("2026-06")
         ? [{ date: "2026-06-25", type: "night", unit: "Emergency", requiredRole: "RN", message: "No RN assigned to Emergency night shift — requires immediate coverage." }]
         : [],
-      overtimeRisks: month.startsWith("2026-06")
-        ? [{ userId: "usr_004", projectedHours: 86, threshold: 80, message: "James Wilson projected 86 hrs in the biweekly period starting 2026-06-22 (limit 80 hrs)" }]
-        : [],
+      overtimeRisks: mockRisks.map((r) => {
+        const approval = overtimeApprovals.find(
+          (a) => a.facilityId === facilityId && a.userId === r.userId && a.periodStart === r.periodStart,
+        );
+        return {
+          ...r,
+          approvedBy: approval?.approvedBy ?? null,
+          approvedByName: approval?.approvedByName ?? null,
+          approvedAt: approval?.approvedAt ?? null,
+        };
+      }),
     });
+  }),
+
+  http.post(`${BASE}/facilities/:facilityId/overtime-risks/approve`, async ({ request, params }) => {
+    const { facilityId } = params as { facilityId: string };
+    const body = await request.json() as { userId: string; periodStart: string };
+    const approvedAt = new Date().toISOString();
+    const record = {
+      facilityId,
+      userId: body.userId,
+      periodStart: body.periodStart,
+      approvedBy: "usr_admin_mock",
+      approvedByName: "Admin User",
+      approvedAt,
+    };
+    overtimeApprovals = overtimeApprovals.filter(
+      (a) => !(a.facilityId === facilityId && a.userId === body.userId && a.periodStart === body.periodStart),
+    );
+    overtimeApprovals.push(record);
+    return ok({
+      userId: record.userId,
+      periodStart: record.periodStart,
+      approvedBy: record.approvedBy,
+      approvedByName: record.approvedByName,
+      approvedAt: record.approvedAt,
+    });
+  }),
+
+  http.delete(`${BASE}/facilities/:facilityId/overtime-risks/approve`, async ({ request, params }) => {
+    const { facilityId } = params as { facilityId: string };
+    const body = await request.json() as { userId: string; periodStart: string };
+    const before = overtimeApprovals.length;
+    overtimeApprovals = overtimeApprovals.filter(
+      (a) => !(a.facilityId === facilityId && a.userId === body.userId && a.periodStart === body.periodStart),
+    );
+    if (overtimeApprovals.length === before) {
+      return HttpResponse.json(
+        { success: false, data: null, error: { code: "NOT_FOUND", message: "No approval found" } },
+        { status: 404 },
+      );
+    }
+    return ok({ userId: body.userId, periodStart: body.periodStart, approved: false });
   }),
 
   http.get(`${BASE}/shifts`, ({ request }) => {
@@ -725,18 +797,60 @@ export const handlers = [
       startDate: string;
       endDate: string;
       reason: string;
+      leaveType: "vacation" | "sick" | "lieu";
     };
     const newReq: TimeOffRequest = {
       requestId: nextId("tof"),
       startDate: body.startDate,
       endDate: body.endDate,
       reason: body.reason,
+      leaveType: body.leaveType,
       status: "pending",
       adminNote: null,
       submittedAt: new Date().toISOString(),
     };
     timeOffRequests.push(newReq);
     return HttpResponse.json({ success: true, data: { requestId: newReq.requestId, status: "pending", submittedAt: newReq.submittedAt }, error: null }, { status: 201 });
+  }),
+
+  // Admin creating/logging leave on behalf of a staff member. Reuses the same
+  // timeOffRequests array as staff self-submission; defaults to "approved"
+  // since an admin creating an entry directly is, in effect, the decision.
+  http.post(`${BASE}/facilities/:facilityId/time-off`, async ({ request }) => {
+    const body = await request.json() as {
+      staffId: string;
+      startDate: string;
+      endDate: string;
+      reason: string;
+      leaveType: "vacation" | "sick" | "lieu";
+      status?: "pending" | "approved";
+      adminNote?: string;
+    };
+    const staffProfile = STAFF_PROFILES.find((s) => s.userId === body.staffId);
+    const newReq: TimeOffRequest = {
+      requestId: nextId("tof"),
+      startDate: body.startDate,
+      endDate: body.endDate,
+      reason: body.reason,
+      leaveType: body.leaveType,
+      status: body.status ?? "approved",
+      adminNote: body.adminNote ?? null,
+      submittedAt: new Date().toISOString(),
+      ...(staffProfile && {
+        staff: {
+          userId: staffProfile.userId,
+          firstName: staffProfile.firstName,
+          lastName: staffProfile.lastName,
+          roleType: staffProfile.roleType,
+          unit: staffProfile.unit,
+        },
+      }),
+    };
+    timeOffRequests.push(newReq);
+    return HttpResponse.json(
+      { success: true, data: { ...newReq, staffId: body.staffId }, error: null },
+      { status: 201 },
+    );
   }),
 
   http.get(`${BASE}/time-off`, ({ request }) => {

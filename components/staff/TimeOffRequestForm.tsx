@@ -9,9 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSubmitTimeOffRequest } from "@/hooks/useRequests";
 import { getApiErrorMessage } from "@/lib/apiError";
+import { LEAVE_TYPES } from "@/lib/leaveTypes";
 
 const timeOffSchema = z
   .object({
+    leaveType: z.enum(["vacation", "sick", "lieu"], {
+      error: "Please select a leave type",
+    }),
     startDate: z.string().min(1, "Start date is required"),
     endDate: z.string().min(1, "End date is required"),
     reason: z.string().min(1, "Please provide a reason"),
@@ -42,6 +46,7 @@ export function TimeOffRequestForm({
   } = useForm<TimeOffFormValues>({
     resolver: zodResolver(timeOffSchema),
     defaultValues: {
+      leaveType: "vacation",
       startDate: "",
       endDate: "",
       reason: "",
@@ -75,6 +80,27 @@ export function TimeOffRequestForm({
         <p className="mt-1 text-xs text-muted-foreground">
           Submit dates and a reason for your manager to review.
         </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="leaveType">Leave type</Label>
+        <select
+          id="leaveType"
+          aria-invalid={Boolean(errors.leaveType)}
+          className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          {...register("leaveType")}
+        >
+          {LEAVE_TYPES.map((lt) => (
+            <option key={lt.value} value={lt.value}>
+              {lt.label}
+            </option>
+          ))}
+        </select>
+        {errors.leaveType ? (
+          <p className="text-xs text-destructive" role="alert">
+            {errors.leaveType.message}
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

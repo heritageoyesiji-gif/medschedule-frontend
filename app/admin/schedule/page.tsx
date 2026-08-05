@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   AIGenerateScheduleResponse,
+  useApproveOvertimeRisk,
   useBiweeklySchedule,
   useConfirmAISchedule,
   useCopySchedule,
@@ -33,6 +34,7 @@ import {
   useFacilitySchedule,
   useGenerateAISchedule,
   usePublishSchedule,
+  useUnapproveOvertimeRisk,
   useUnpublishSchedule,
   useUpdateShift,
 } from "@/hooks/useAdminSchedule";
@@ -122,6 +124,8 @@ export default function ScheduleBuilderPage() {
   const copySchedule = useCopySchedule(facilityId);
   const generateAiSchedule = useGenerateAISchedule();
   const confirmAiSchedule = useConfirmAISchedule();
+  const approveOvertimeRisk = useApproveOvertimeRisk(facilityId, month);
+  const unapproveOvertimeRisk = useUnapproveOvertimeRisk(facilityId, month);
 
   const staffList = staffData?.staff ?? [];
   const gaps = scheduleData?.gaps ?? [];
@@ -269,6 +273,26 @@ export default function ScheduleBuilderPage() {
       void refetchSchedule();
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to unpublish schedule"));
+    }
+  };
+
+  const handleApproveOvertime = async (userId: string, periodStart: string) => {
+    try {
+      await approveOvertimeRisk.mutateAsync({ userId, periodStart });
+      toast.success("Overtime approved.");
+      void refetchSchedule();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to approve overtime"));
+    }
+  };
+
+  const handleUnapproveOvertime = async (userId: string, periodStart: string) => {
+    try {
+      await unapproveOvertimeRisk.mutateAsync({ userId, periodStart });
+      toast.success("Approval undone.");
+      void refetchSchedule();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to undo approval"));
     }
   };
 
@@ -619,12 +643,40 @@ export default function ScheduleBuilderPage() {
                     </div>
                   ) : (
                     risks.map((risk, i) => (
-                      <div key={i} className="text-xs bg-red-50/50 border border-red-200 text-red-900 rounded p-2.5 space-y-1">
+                      <div key={i} className="text-xs bg-red-50/50 border border-red-200 text-red-900 rounded p-2.5 space-y-1.5">
                         <div className="font-semibold flex justify-between gap-2">
                           <span>Projected: {risk.projectedHours}h</span>
                           <span className="text-red-700">Limit: {risk.threshold}h</span>
                         </div>
                         <p className="text-[11px] text-muted-foreground">{risk.message}</p>
+                        {risk.approvedBy ? (
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-red-200/60">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-teal-700">
+                              <Check className="size-3" /> Approved by {risk.approvedByName ?? "admin"}
+                              {risk.approvedAt && ` · ${new Date(risk.approvedAt).toLocaleDateString()}`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleUnapproveOvertime(risk.userId, risk.periodStart)}
+                              disabled={unapproveOvertimeRisk.isPending}
+                              className="text-[11px] font-medium text-muted-foreground hover:text-foreground underline underline-offset-2 shrink-0"
+                            >
+                              Undo
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="pt-1 border-t border-red-200/60">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleApproveOvertime(risk.userId, risk.periodStart)}
+                              disabled={approveOvertimeRisk.isPending}
+                              className="h-7 text-[11px] gap-1 bg-white"
+                            >
+                              <Check className="size-3" /> Approve overtime
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))
                   )}

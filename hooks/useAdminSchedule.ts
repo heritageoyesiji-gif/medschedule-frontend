@@ -302,6 +302,63 @@ export function useCopySchedule(facilityId: string | null) {
   });
 }
 
+// 4.8 Approve an Overtime Risk (admin) — records who signed off and when.
+// Does not touch overtime calculation; purely a persisted annotation on an
+// already-computed risk.
+type OvertimeApprovalPayload = {
+  userId: string;
+  periodStart: string;
+};
+
+export function useApproveOvertimeRisk(facilityId: string | null, month: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: OvertimeApprovalPayload) => {
+      const { data } = await api.post<ApiResponse<OvertimeRisk>>(
+        `/facilities/${facilityId}/overtime-risks/approve`,
+        payload,
+      );
+      if (!data.success || !data.data) {
+        throw new Error(data.error?.message ?? "Failed to approve overtime");
+      }
+      return data.data;
+    },
+    onSuccess: () => {
+      if (facilityId) {
+        void queryClient.invalidateQueries({
+          queryKey: adminScheduleKeys.facilityMonth(facilityId, month),
+        });
+      }
+    },
+  });
+}
+
+// 4.9 Undo an Overtime Risk approval (admin)
+export function useUnapproveOvertimeRisk(facilityId: string | null, month: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: OvertimeApprovalPayload) => {
+      const { data } = await api.delete<ApiResponse<{ approved: boolean }>>(
+        `/facilities/${facilityId}/overtime-risks/approve`,
+        { data: payload },
+      );
+      if (!data.success) {
+        throw new Error(data.error?.message ?? "Failed to undo overtime approval");
+      }
+      return data.data;
+    },
+    onSuccess: () => {
+      if (facilityId) {
+        void queryClient.invalidateQueries({
+          queryKey: adminScheduleKeys.facilityMonth(facilityId, month),
+        });
+      }
+    },
+  });
+}
+
 // 5.2 Confirm AI-Generated Schedule
 type ConfirmAIPayload = {
   facilityId: string;
