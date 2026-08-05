@@ -171,168 +171,203 @@ export function BiweeklyGrid({
     }
   };
 
-  return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-card">
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-border">
-            <th className="sticky left-0 z-20 bg-card px-3 py-2.5 text-left font-semibold text-muted-foreground min-w-50 border-r border-border">
-              Staff
-            </th>
-            {days.map((d) => {
-              const dt = new Date(`${d}T00:00:00Z`);
-              const dow = dt.getUTCDay();
-              const isWeekend = dow === 0 || dow === 6;
-              const isToday = d === today;
+  const week1Days = days.slice(0, 7);
+  const week2Days = days.slice(7, 14);
+
+  const formatDayHeader = (d: string) => {
+    const dt = new Date(`${d}T00:00:00Z`);
+    return {
+      weekday: dt.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
+      md: `${dt.getUTCMonth() + 1}/${dt.getUTCDate()}`,
+      isWeekend: dt.getUTCDay() === 0 || dt.getUTCDay() === 6,
+    };
+  };
+
+  const formatWeekLabel = (weekDays: string[]) => {
+    const start = new Date(`${weekDays[0]}T00:00:00Z`);
+    const end = new Date(`${weekDays[weekDays.length - 1]}T00:00:00Z`);
+    const fmt = (dt: Date) => dt.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+    return `${fmt(start)} – ${fmt(end)}`;
+  };
+
+  // One staff row's day cells for a given week's 7 columns. Shared by both
+  // week tables below so the (fairly involved) shift/preview/off/add-shift
+  // cell logic isn't duplicated.
+  const renderDayCells = (member: StaffProfile, weekDays: string[]) =>
+    weekDays.map((d) => {
+      const key = cellKey(member.userId, d);
+      const cellShifts = shiftsByCell.get(key) ?? [];
+      const cellPreview = previewByCell.get(key) ?? [];
+      const isOff = offCells.has(key);
+      const isDragOver = dragOverCell === key;
+      return (
+        <td
+          key={d}
+          className={`p-0.5 align-top ${isDragOver ? "bg-accent/15 outline outline-2 outline-accent" : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (dragOverCell !== key) setDragOverCell(key);
+          }}
+          onDragLeave={() => {
+            if (dragOverCell === key) setDragOverCell(null);
+          }}
+          onDrop={(e) => handleDrop(e, member.userId, d)}
+        >
+          <div className="flex flex-col gap-0.5">
+            {cellShifts.map((s) => {
+              const unitColor = getUnitColor(s.unit);
+              const typeColor = getShiftColor(s.type);
               return (
-                <th
-                  key={d}
-                  className={`px-1.5 py-2.5 text-center font-semibold min-w-21 ${
-                    isWeekend ? "bg-muted/40" : ""
-                  } ${isToday ? "text-accent" : "text-muted-foreground"}`}
+                <button
+                  key={s.shiftId}
+                  type="button"
+                  draggable
+                  onDragStart={(e) =>
+                    e.dataTransfer.setData(
+                      "text/plain",
+                      JSON.stringify({ kind: "shift", shiftId: s.shiftId } satisfies DragPayload),
+                    )
+                  }
+                  onClick={() => onShiftClick(s)}
+                  title={`${s.unit} · ${getShiftTypeLabel(s.type, configs)} · ${s.startTime}–${s.endTime}`}
+                  className="w-full rounded px-1 py-1 text-left text-[11px] font-semibold text-white leading-tight cursor-grab active:cursor-grabbing"
+                  style={{ backgroundColor: unitColor, borderLeft: `4px solid ${typeColor}` }}
                 >
-                  <div className="text-[11px] uppercase tracking-wide">
-                    {dt.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })}
-                  </div>
-                  <div className="text-xs font-bold text-foreground">
-                    {dt.getUTCMonth() + 1}/{dt.getUTCDate()}
-                  </div>
-                </th>
+                  <span className="block truncate">{s.unit}</span>
+                  <span className="block truncate opacity-90">
+                    {compactTime(s.startTime)}–{compactTime(s.endTime)}
+                  </span>
+                </button>
               );
             })}
+            {cellPreview.map((s, idx) => (
+              <div
+                key={`preview-${idx}`}
+                title={`[AI preview — not yet saved] ${s.unit} · ${s.startTime}–${s.endTime}`}
+                className="w-full rounded px-1 py-1 text-left text-[11px] font-semibold text-white leading-tight opacity-70 border border-dashed border-white/60"
+                style={{ backgroundColor: "#9CA3AF" }}
+              >
+                <span className="block truncate">AI · {s.unit}</span>
+                <span className="block truncate opacity-90">
+                  {compactTime(s.startTime)}–{compactTime(s.endTime)}
+                </span>
+              </div>
+            ))}
+            {cellShifts.length === 0 && cellPreview.length === 0 && (
+              <button
+                type="button"
+                onClick={() => onCellClick(member.userId, d)}
+                aria-label={`Add shift for ${member.firstName} ${member.lastName} on ${d}`}
+                className={`group flex h-11 w-full items-center justify-center rounded ${
+                  isOff ? "bg-muted/60" : "hover:bg-accent/10"
+                }`}
+              >
+                {isOff ? (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Off
+                  </span>
+                ) : (
+                  <span className="text-base leading-none text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
+                    +
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
+        </td>
+      );
+    });
+
+  // The staff-info cell (name/role/unit/phone) is identical in both week
+  // tables for a given person — same markup, just rendered twice (once per
+  // table) so each week stands alone rather than relying on a rowSpan across
+  // two separately-scrollable tables.
+  const renderStaffCell = (member: StaffProfile) => {
+    const roleColors = getRoleColors(member.roleType);
+    return (
+      <th className="sticky left-0 z-10 bg-card px-3 py-2.5 text-left align-top min-w-50 border-r border-border">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onStaffNameClick(member)}
+            className="text-sm font-semibold text-foreground truncate hover:text-accent hover:underline underline-offset-2"
+            title={`View details for ${member.firstName} ${member.lastName}`}
+          >
+            {member.firstName} {member.lastName}
+          </button>
+          <span
+            className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${roleColors.bg} ${roleColors.text} ${roleColors.border}`}
+          >
+            {getRoleLabel(member.roleType)}
+          </span>
+        </div>
+        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <span
+              className="size-2 rounded-full shrink-0"
+              style={{ backgroundColor: getUnitColor(member.unit) }}
+            />
+            {member.unit || "No unit"}
+          </span>
+          <span aria-hidden>·</span>
+          <span className="truncate">{getEmploymentLabel(member.employmentType)}</span>
+        </div>
+        {member.phone?.trim() && (
+          <div className="text-[11px] text-muted-foreground truncate">{member.phone}</div>
+        )}
+      </th>
+    );
+  };
+
+  // A single week's table — 7 columns instead of 14, so both weeks of the
+  // period fit on screen at once with no horizontal scroll. showHours is
+  // true only for the second table: the Hours/OT total is a property of the
+  // full 14-day period, not either week alone, so it's shown once, attached
+  // to the end of the period rather than duplicated (and potentially
+  // misread as a per-week figure) on both tables.
+  const renderWeekTable = (weekDays: string[], showHours: boolean) => (
+    <table className="w-full border-collapse text-sm">
+      <thead>
+        <tr className="border-b border-border">
+          <th className="sticky left-0 z-20 bg-card px-3 py-2.5 text-left font-semibold text-muted-foreground min-w-50 border-r border-border">
+            Staff
+          </th>
+          {weekDays.map((d) => {
+            const { weekday, md, isWeekend } = formatDayHeader(d);
+            const isToday = d === today;
+            return (
+              <th
+                key={d}
+                className={`px-1.5 py-2.5 text-center font-semibold min-w-21 ${
+                  isWeekend ? "bg-muted/40" : ""
+                } ${isToday ? "text-accent" : "text-muted-foreground"}`}
+              >
+                <div className="text-[11px] uppercase tracking-wide">{weekday}</div>
+                <div className="text-xs font-bold text-foreground">{md}</div>
+              </th>
+            );
+          })}
+          {showHours && (
             <th className="px-2 py-2.5 text-center font-semibold text-muted-foreground min-w-21 border-l border-border">
               Hours
             </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {sortedStaff.map((member) => {
-            const roleColors = getRoleColors(member.roleType);
-            const total = totals[member.userId] ?? 0;
-            const threshold = thresholdByType.get(member.employmentType) ?? null;
-            let totalClass = "text-foreground";
-            if (threshold !== null) {
-              if (total > threshold) totalClass = "bg-red-100 text-red-800 font-bold";
-              else if (total >= threshold * 0.9) totalClass = "bg-amber-100 text-amber-800 font-bold";
-            }
-            return (
-              <tr key={member.userId} className="hover:bg-muted/20">
-                <th className="sticky left-0 z-10 bg-card px-3 py-2.5 text-left align-top min-w-50 border-r border-border">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onStaffNameClick(member)}
-                      className="text-sm font-semibold text-foreground truncate hover:text-accent hover:underline underline-offset-2"
-                      title={`View details for ${member.firstName} ${member.lastName}`}
-                    >
-                      {member.firstName} {member.lastName}
-                    </button>
-                    <span
-                      className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${roleColors.bg} ${roleColors.text} ${roleColors.border}`}
-                    >
-                      {getRoleLabel(member.roleType)}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <span
-                        className="size-2 rounded-full shrink-0"
-                        style={{ backgroundColor: getUnitColor(member.unit) }}
-                      />
-                      {member.unit || "No unit"}
-                    </span>
-                    <span aria-hidden>·</span>
-                    <span className="truncate">{getEmploymentLabel(member.employmentType)}</span>
-                  </div>
-                  {member.phone?.trim() && (
-                    <div className="text-[11px] text-muted-foreground truncate">{member.phone}</div>
-                  )}
-                </th>
-
-                {days.map((d) => {
-                  const key = cellKey(member.userId, d);
-                  const cellShifts = shiftsByCell.get(key) ?? [];
-                  const cellPreview = previewByCell.get(key) ?? [];
-                  const isOff = offCells.has(key);
-                  const isDragOver = dragOverCell === key;
-                  return (
-                    <td
-                      key={d}
-                      className={`p-0.5 align-top ${isDragOver ? "bg-accent/15 outline outline-2 outline-accent" : ""}`}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (dragOverCell !== key) setDragOverCell(key);
-                      }}
-                      onDragLeave={() => {
-                        if (dragOverCell === key) setDragOverCell(null);
-                      }}
-                      onDrop={(e) => handleDrop(e, member.userId, d)}
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        {cellShifts.map((s) => {
-                          const unitColor = getUnitColor(s.unit);
-                          const typeColor = getShiftColor(s.type);
-                          return (
-                            <button
-                              key={s.shiftId}
-                              type="button"
-                              draggable
-                              onDragStart={(e) =>
-                                e.dataTransfer.setData(
-                                  "text/plain",
-                                  JSON.stringify({ kind: "shift", shiftId: s.shiftId } satisfies DragPayload),
-                                )
-                              }
-                              onClick={() => onShiftClick(s)}
-                              title={`${s.unit} · ${getShiftTypeLabel(s.type, configs)} · ${s.startTime}–${s.endTime}`}
-                              className="w-full rounded px-1 py-1 text-left text-[11px] font-semibold text-white leading-tight cursor-grab active:cursor-grabbing"
-                              style={{ backgroundColor: unitColor, borderLeft: `4px solid ${typeColor}` }}
-                            >
-                              <span className="block truncate">{s.unit}</span>
-                              <span className="block truncate opacity-90">
-                                {compactTime(s.startTime)}–{compactTime(s.endTime)}
-                              </span>
-                            </button>
-                          );
-                        })}
-                        {cellPreview.map((s, idx) => (
-                          <div
-                            key={`preview-${idx}`}
-                            title={`[AI preview — not yet saved] ${s.unit} · ${s.startTime}–${s.endTime}`}
-                            className="w-full rounded px-1 py-1 text-left text-[11px] font-semibold text-white leading-tight opacity-70 border border-dashed border-white/60"
-                            style={{ backgroundColor: "#9CA3AF" }}
-                          >
-                            <span className="block truncate">AI · {s.unit}</span>
-                            <span className="block truncate opacity-90">
-                              {compactTime(s.startTime)}–{compactTime(s.endTime)}
-                            </span>
-                          </div>
-                        ))}
-                        {cellShifts.length === 0 && cellPreview.length === 0 && (
-                          <button
-                            type="button"
-                            onClick={() => onCellClick(member.userId, d)}
-                            aria-label={`Add shift for ${member.firstName} ${member.lastName} on ${d}`}
-                            className={`group flex h-11 w-full items-center justify-center rounded ${
-                              isOff ? "bg-muted/60" : "hover:bg-accent/10"
-                            }`}
-                          >
-                            {isOff ? (
-                              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                Off
-                              </span>
-                            ) : (
-                              <span className="text-base leading-none text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
-                                +
-                              </span>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  );
-                })}
-
+          )}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-border">
+        {sortedStaff.map((member) => {
+          const total = totals[member.userId] ?? 0;
+          const threshold = thresholdByType.get(member.employmentType) ?? null;
+          let totalClass = "text-foreground";
+          if (threshold !== null) {
+            if (total > threshold) totalClass = "bg-red-100 text-red-800 font-bold";
+            else if (total >= threshold * 0.9) totalClass = "bg-amber-100 text-amber-800 font-bold";
+          }
+          return (
+            <tr key={member.userId} className="hover:bg-muted/20">
+              {renderStaffCell(member)}
+              {renderDayCells(member, weekDays)}
+              {showHours && (
                 <td className="border-l border-border p-1 text-center align-middle">
                   <span className={`inline-block rounded px-2 py-1 text-xs ${totalClass}`}>
                     {total}
@@ -341,11 +376,29 @@ export function BiweeklyGrid({
                     )}
                   </span>
                 </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+              )}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-3 py-1.5 border-b border-border bg-muted/30 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Week 1 · {formatWeekLabel(week1Days)}
+        </div>
+        <div className="overflow-x-auto">{renderWeekTable(week1Days, false)}</div>
+      </div>
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-3 py-1.5 border-b border-border bg-muted/30 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Week 2 · {formatWeekLabel(week2Days)}
+          <span className="ml-2 normal-case font-normal">— Hours column shows the full 14-day total</span>
+        </div>
+        <div className="overflow-x-auto">{renderWeekTable(week2Days, true)}</div>
+      </div>
     </div>
   );
 }
