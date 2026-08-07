@@ -404,6 +404,15 @@ let notifications: Notification[] = [
 
 // ─── handlers ────────────────────────────────────────────────────────────────
 
+function sortedStaffProfiles() {
+  return [...STAFF_PROFILES].sort((a, b) => {
+    const soa = a.sortOrder ?? 0;
+    const sob = b.sortOrder ?? 0;
+    if (soa !== sob) return soa - sob;
+    return `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`);
+  });
+}
+
 export const handlers = [
   // ── Auth ──────────────────────────────────────────────────────────────────
 
@@ -501,12 +510,27 @@ export const handlers = [
 
   // ── Staff Profiles ─────────────────────────────────────────────────────────
 
-  http.get(`${BASE}/facilities/:facilityId/staff`, () =>
-    ok({ staff: STAFF_PROFILES, total: STAFF_PROFILES.length }),
-  ),
+  http.get(`${BASE}/facilities/:facilityId/staff`, () => {
+    const staff = sortedStaffProfiles();
+    return ok({ staff, total: staff.length });
+  }),
+
+  // Persist a manual drag-to-reorder. staffIds is the full new order for
+  // whichever set of staff was displayed; sortOrder is set to each one's
+  // index in that array, mirroring the real backend's reorderStaff().
+  http.put(`${BASE}/facilities/:facilityId/staff/reorder`, async ({ request }) => {
+    const body = await request.json() as { staffIds: string[] };
+    body.staffIds.forEach((userId, index) => {
+      const profile = STAFF_PROFILES.find((s) => s.userId === userId);
+      if (profile) profile.sortOrder = index;
+    });
+    const staff = sortedStaffProfiles();
+    return ok({ staff, total: staff.length });
+  }),
 
   http.post(`${BASE}/facilities/:facilityId/staff`, async ({ request }) => {
     const body = await request.json() as Partial<StaffProfile>;
+    const maxOrder = STAFF_PROFILES.reduce((max, s) => Math.max(max, s.sortOrder ?? 0), -1);
     const newStaff: StaffProfile = {
       userId: nextId("usr"),
       firstName: body.firstName ?? "New",
@@ -521,6 +545,7 @@ export const handlers = [
       status: "active",
       phone: body.phone ?? "",
       notes: body.notes ?? "",
+      sortOrder: maxOrder + 1,
     };
     STAFF_PROFILES.push(newStaff);
     return HttpResponse.json({ success: true, data: newStaff, error: null }, { status: 201 });

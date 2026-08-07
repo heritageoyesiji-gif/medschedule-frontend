@@ -43,7 +43,7 @@ import { useOvertimeConfig } from "@/hooks/useOvertimeConfig";
 import { useTimeOffRequests } from "@/hooks/useRequests";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveFacilityId } from "@/hooks/useActiveFacility";
-import { useFacilityStaff } from "@/hooks/useStaff";
+import { useFacilityStaff, useReorderStaff } from "@/hooks/useStaff";
 import { getApiErrorMessage } from "@/lib/apiError";
 import {
   formatMonthLabel,
@@ -110,6 +110,7 @@ export default function ScheduleBuilderPage() {
   const month = periodStart.slice(0, 7);
 
   const { data: staffData } = useFacilityStaff(facilityId);
+  const reorderStaff = useReorderStaff(facilityId);
   const { data: scheduleData, refetch: refetchSchedule } = useFacilitySchedule(facilityId, month);
   const { data: shiftConfigs } = useShiftConfig(facilityId);
   const { data: overtimeConfig } = useOvertimeConfig(facilityId);
@@ -274,6 +275,14 @@ export default function ScheduleBuilderPage() {
       void refetchSchedule();
     } catch (err) {
       toast.error(getApiErrorMessage(err, "Failed to unpublish schedule"));
+    }
+  };
+
+  const handleReorderStaff = async (orderedStaffIds: string[]) => {
+    try {
+      await reorderStaff.mutateAsync(orderedStaffIds);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to save the new order"));
     }
   };
 
@@ -594,6 +603,7 @@ export default function ScheduleBuilderPage() {
               onShiftDrop={handleGridShiftDrop}
               onStaffDrop={openAddFor}
               onStaffNameClick={setSelectedStaffDetails}
+              onReorderStaff={handleReorderStaff}
             />
           )}
         </div>

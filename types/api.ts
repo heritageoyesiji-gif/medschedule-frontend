@@ -175,6 +175,12 @@ export type StaffProfile = {
   // different units", "only work UTC", "prefers day shifts". Optional so
   // existing profiles without notes stay valid.
   notes?: string;
+  // Manual display order within the facility, set via drag-and-drop
+  // reordering in the Scheduler. NOT a clinical/seniority ranking — just
+  // "where the scheduler wants them to appear in the list." Optional so
+  // profiles predating this field default sensibly (falls back to
+  // alphabetical when undefined/equal).
+  sortOrder?: number;
 };
 
 export type Shift = {

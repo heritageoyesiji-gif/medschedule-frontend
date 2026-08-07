@@ -41,6 +41,32 @@ export function useFacilityStaff(facilityId: string | null) {
   });
 }
 
+// 3.1b Persist a manual drag-to-reorder (Admin)
+export function useReorderStaff(facilityId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (staffIds: string[]) => {
+      const { data } = await api.put<ApiResponse<FacilityStaffData>>(
+        `/facilities/${facilityId}/staff/reorder`,
+        { staffIds },
+      );
+      if (!data.success || !data.data) {
+        throw new Error(data.error?.message ?? "Failed to save the new order");
+      }
+      return data.data;
+    },
+    onSuccess: (updated) => {
+      if (facilityId) {
+        // The response already contains the freshly-reordered list — write it
+        // straight into the cache instead of waiting on a refetch, so the
+        // grid reflects the new order immediately.
+        queryClient.setQueryData(staffKeys.facility(facilityId), updated);
+      }
+    },
+  });
+}
+
 // 3.2 Get Single Staff Profile (Admin or own)
 async function fetchStaffProfile(staffId: string): Promise<StaffProfile> {
   const { data } = await api.get<ApiResponse<StaffProfile>>(`/staff/${staffId}`);
