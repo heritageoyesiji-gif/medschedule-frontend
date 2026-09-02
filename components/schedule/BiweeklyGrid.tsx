@@ -6,7 +6,9 @@ import { getPeriodDays, sumHoursByStaff } from "@/lib/biweekly";
 import { getShiftColor, getShiftTypeLabel } from "@/lib/schedule";
 import { getUnitColor } from "@/lib/units";
 import { getRoleColors, getRoleLabel, ROLE_ORDER } from "@/lib/roles";
+import { getGridOffLabel } from "@/lib/leaveTypes";
 import type {
+  LeaveType,
   OvertimeConfig,
   Shift,
   ShiftTypeConfig,
@@ -151,17 +153,22 @@ export function BiweeklyGrid({
     return m;
   }, [overtimeConfig]);
 
-  // (staffId|date) covered by an approved time-off request.
+  // (staffId|date) -> the leave type on the approved time-off request
+  // covering that day, or "off" as a fallback for older requests recorded
+  // before leaveType existed. Shows the actual type (Sick/Vacation/Lieu)
+  // in the cell instead of a generic "OFF".
   const offCells = useMemo(() => {
-    const set = new Set<string>();
+    const map = new Map<string, string>();
     const periodDays = getPeriodDays(periodStart);
     for (const req of timeOff) {
       if (req.status !== "approved" || !req.staff?.userId) continue;
       for (const d of periodDays) {
-        if (d >= req.startDate && d <= req.endDate) set.add(cellKey(req.staff.userId, d));
+        if (d >= req.startDate && d <= req.endDate) {
+          map.set(cellKey(req.staff.userId, d), req.leaveType ?? "off");
+        }
       }
     }
-    return set;
+    return map;
   }, [timeOff, periodStart]);
 
   const readPayload = (e: React.DragEvent): DragPayload | null => {
@@ -232,10 +239,10 @@ export function BiweeklyGrid({
               return (
                 <th
                   key={d}
-                  className={`px-0.5 py-2 text-center font-semibold min-w-14 ${
+                  className={`px-0.5 py-2 text-center font-semibold min-w-14 border-l border-border ${
                     isWeekend ? "bg-muted/40" : ""
                   } ${isToday ? "text-accent" : "text-muted-foreground"} ${
-                    isWeekBoundary ? "border-l-2 border-l-border" : ""
+                    isWeekBoundary ? "border-l-2 border-l-foreground/20" : ""
                   }`}
                 >
                   <div className="text-[10px] uppercase tracking-wide">{weekday}</div>
@@ -249,7 +256,7 @@ export function BiweeklyGrid({
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {sortedStaff.map((member) => {
+          {sortedStaff.map((member, rowIndex) => {
             const roleColors = getRoleColors(member.roleType);
             const total = totals[member.userId] ?? 0;
             const threshold = thresholdByType.get(member.employmentType) ?? null;
@@ -258,10 +265,14 @@ export function BiweeklyGrid({
               if (total > threshold) totalClass = "bg-red-100 text-red-800 font-bold";
               else if (total >= threshold * 0.9) totalClass = "bg-amber-100 text-amber-800 font-bold";
             }
+            // Alternating row shading. The sticky staff cell needs the same
+            // background applied explicitly (its own bg-card would otherwise
+            // override the row's stripe, since sticky cells paint themselves).
+            const rowBg = rowIndex % 2 === 1 ? "bg-muted/25" : "bg-card";
             return (
-              <tr key={member.userId} className="hover:bg-muted/20">
+              <tr key={member.userId} className={`${rowBg} hover:bg-accent/10`}>
                 <th
-                  className={`sticky left-0 z-10 bg-card px-1 py-1.5 text-left align-middle min-w-36 border-r border-border ${
+                  className={`sticky left-0 z-10 ${rowBg} px-1 py-1.5 text-left align-middle min-w-36 border-r border-border ${
                     dragOverCell === `reorder|${member.userId}` ? "bg-accent/15 outline outline-2 outline-accent" : ""
                   }`}
                   onDragOver={(e) => {
@@ -310,14 +321,15 @@ export function BiweeklyGrid({
                   const key = cellKey(member.userId, d);
                   const cellShifts = shiftsByCell.get(key) ?? [];
                   const cellPreview = previewByCell.get(key) ?? [];
-                  const isOff = offCells.has(key);
+                  const leaveType = offCells.get(key);
+                  const isOff = leaveType !== undefined;
                   const isDragOver = dragOverCell === key;
                   const isWeekBoundary = i === 7;
                   return (
                     <td
                       key={d}
-                      className={`p-0.5 align-top ${isDragOver ? "bg-accent/15 outline outline-2 outline-accent" : ""} ${
-                        isWeekBoundary ? "border-l-2 border-l-border" : ""
+                      className={`p-0.5 align-top border-l border-border ${isDragOver ? "bg-accent/15 outline outline-2 outline-accent" : ""} ${
+                        isWeekBoundary ? "border-l-2 border-l-foreground/20" : ""
                       }`}
                       onDragOver={(e) => {
                         e.preventDefault();
@@ -373,7 +385,7 @@ export function BiweeklyGrid({
                           >
                             {isOff ? (
                               <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                Off
+                                {getGridOffLabel(leaveType as LeaveType | "off")}
                               </span>
                             ) : (
                               <span className="text-sm leading-none text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100">
