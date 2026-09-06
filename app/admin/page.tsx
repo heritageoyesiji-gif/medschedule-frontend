@@ -9,6 +9,7 @@ import { z } from "zod";
 import {
   AlertCircle,
   Calendar,
+  CheckCircle2,
   ClipboardList,
   Megaphone,
   Plus,
@@ -220,8 +221,9 @@ export default function AdminDashboard() {
                 onRetry={() => void refetchSchedule()}
               />
             ) : gapsCount === 0 && overtimeCount === 0 ? (
-              <div className="mt-6 rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                No active gaps or overtime risks detected for this month.
+              <div className="mt-6 flex items-center gap-3 rounded-lg border border-teal-200 bg-teal-50/60 p-4 text-sm text-teal-900">
+                <CheckCircle2 className="size-5 shrink-0 text-teal-600" />
+                <span>No active gaps or overtime risks — this month is fully covered.</span>
               </div>
             ) : (
               <div className="mt-6 space-y-4 max-h-75 overflow-y-auto pr-1">
@@ -394,9 +396,15 @@ export default function AdminDashboard() {
                 onRetry={() => void refetchAnnouncements()}
               />
             ) : !announcementsData?.announcements || announcementsData.announcements.length === 0 ? (
-              <div className="mt-4 text-center py-6 text-xs text-muted-foreground border border-dashed border-border rounded-lg">
-                No announcements posted yet.
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsNewAnnouncementOpen(true)}
+                className="mt-4 flex w-full flex-col items-center gap-2 rounded-lg border border-dashed border-border p-6 text-center hover:border-accent hover:bg-accent/5 transition-colors"
+              >
+                <Megaphone className="size-5 text-muted-foreground" />
+                <span className="text-sm text-foreground">No announcements posted yet.</span>
+                <span className="text-xs text-accent font-medium">Post one to keep your staff in the loop</span>
+              </button>
             ) : (
               <div className="mt-4 space-y-3 max-h-87.5 overflow-y-auto pr-1">
                 {announcementsData.announcements.map((ann) => (

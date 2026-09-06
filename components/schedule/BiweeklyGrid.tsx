@@ -357,8 +357,8 @@ export function BiweeklyGrid({
                               }
                               onClick={() => onShiftClick(s)}
                               title={`${s.unit} · ${getShiftTypeLabel(s.type, configs)} · ${s.startTime}–${s.endTime}`}
-                              className="w-full rounded px-0.5 py-0.5 text-center text-[10px] font-semibold text-white leading-tight cursor-grab active:cursor-grabbing truncate"
-                              style={{ backgroundColor: unitColor, borderLeft: `3px solid ${typeColor}` }}
+                              className="w-full rounded-md px-1.5 py-1.5 text-center text-[11px] font-bold text-white leading-tight cursor-grab active:cursor-grabbing truncate shadow-sm transition-all hover:shadow-md hover:brightness-110 hover:-translate-y-px active:translate-y-0 active:shadow-sm"
+                              style={{ backgroundColor: unitColor, borderLeft: `5px solid ${typeColor}` }}
                             >
                               {compactTime(s.startTime)}–{compactTime(s.endTime)}
                             </button>
@@ -368,7 +368,7 @@ export function BiweeklyGrid({
                           <div
                             key={`preview-${idx}`}
                             title={`[AI preview — not yet saved] ${s.unit} · ${s.startTime}–${s.endTime}`}
-                            className="w-full rounded px-0.5 py-0.5 text-center text-[10px] font-semibold text-white leading-tight opacity-70 border border-dashed border-white/60 truncate"
+                            className="w-full rounded-md px-1.5 py-1.5 text-center text-[11px] font-bold text-white leading-tight opacity-70 border border-dashed border-white/60 truncate"
                             style={{ backgroundColor: "#9CA3AF" }}
                           >
                             {compactTime(s.startTime)}–{compactTime(s.endTime)}

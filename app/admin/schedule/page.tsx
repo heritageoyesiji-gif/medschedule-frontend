@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Brain,
   Check,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -47,6 +48,7 @@ import { useFacilityStaff, useReorderStaff } from "@/hooks/useStaff";
 import { getApiErrorMessage } from "@/lib/apiError";
 import {
   formatMonthLabel,
+  getShiftColor,
   getShiftTypeLabel,
   MAX_SHIFT_HOURS,
   shiftDurationHours,
@@ -139,6 +141,11 @@ export default function ScheduleBuilderPage() {
 
   const uniqueUnits = useMemo(
     () => Array.from(new Set(biweekly.shifts.map((s) => s.unit))),
+    [biweekly.shifts],
+  );
+
+  const uniqueShiftTypes = useMemo(
+    () => Array.from(new Set(biweekly.shifts.map((s) => s.type))),
     [biweekly.shifts],
   );
 
@@ -548,22 +555,44 @@ export default function ScheduleBuilderPage() {
           ))}
         </div>
 
-        {/* Unit color legend — fill color encodes the unit, left stripe the shift type */}
-        {uniqueUnits.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
-            <span className="font-semibold uppercase tracking-wider text-muted-foreground">Units</span>
-            {uniqueUnits.map((u) => (
-              <span key={u} className="inline-flex items-center gap-1.5 text-foreground">
-                <span
-                  className="size-3 rounded-sm border border-black/10"
-                  style={{ backgroundColor: getUnitColor(u) }}
-                />
-                {u || "No unit"}
-              </span>
-            ))}
-            <span className="ml-auto text-[11px] italic text-muted-foreground">
-              Left stripe = shift type
-            </span>
+        {/* Legend — unit fill colors and shift-type stripe colors, both as a
+            persistent key near the top of the grid rather than a caption
+            you have to go looking for. */}
+        {(uniqueUnits.length > 0 || uniqueShiftTypes.length > 0) && (
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
+            {uniqueUnits.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <span className="font-semibold uppercase tracking-wider text-muted-foreground">Units</span>
+                {uniqueUnits.map((u) => (
+                  <span key={u} className="inline-flex items-center gap-1.5 text-foreground">
+                    <span
+                      className="size-3 rounded-sm border border-black/10"
+                      style={{ backgroundColor: getUnitColor(u) }}
+                    />
+                    {u || "No unit"}
+                  </span>
+                ))}
+              </div>
+            )}
+            {uniqueUnits.length > 0 && uniqueShiftTypes.length > 0 && (
+              <span className="h-4 w-px bg-border" aria-hidden />
+            )}
+            {uniqueShiftTypes.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <span className="font-semibold uppercase tracking-wider text-muted-foreground">
+                  Shift Type
+                </span>
+                {uniqueShiftTypes.map((t) => (
+                  <span key={t} className="inline-flex items-center gap-1.5 text-foreground">
+                    <span
+                      className="h-3 w-1.5 rounded-sm"
+                      style={{ backgroundColor: getShiftColor(t) }}
+                    />
+                    {getShiftTypeLabel(t, configs)}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -639,8 +668,9 @@ export default function ScheduleBuilderPage() {
                 </h3>
                 <div className="space-y-2">
                   {gaps.length === 0 ? (
-                    <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
-                      No staffing gaps detected.
+                    <div className="flex items-center gap-2.5 rounded-lg border border-teal-200 bg-teal-50/60 p-3 text-xs text-teal-900">
+                      <CheckCircle2 className="size-4 shrink-0 text-teal-600" />
+                      <span>No staffing gaps — coverage looks good.</span>
                     </div>
                   ) : (
                     gaps.map((gap, i) => (
@@ -662,8 +692,9 @@ export default function ScheduleBuilderPage() {
                 </h3>
                 <div className="space-y-2">
                   {risks.length === 0 ? (
-                    <div className="text-xs text-muted-foreground italic p-3 border border-dashed border-border rounded-lg text-center">
-                      No overtime risks detected.
+                    <div className="flex items-center gap-2.5 rounded-lg border border-teal-200 bg-teal-50/60 p-3 text-xs text-teal-900">
+                      <CheckCircle2 className="size-4 shrink-0 text-teal-600" />
+                      <span>No overtime risks — nobody&apos;s projected over.</span>
                     </div>
                   ) : (
                     risks.map((risk, i) => (
