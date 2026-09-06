@@ -56,12 +56,12 @@ const todayStr = () => {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
 };
 
-// "07:00" -> "7a", "19:30" -> "7:30p"
+// "07:00" -> "7am", "19:30" -> "7:30pm"
 function compactTime(t: string): string {
   const [hStr, mStr] = t.split(":");
   const h = Number(hStr);
   const m = Number(mStr);
-  const ampm = h < 12 ? "a" : "p";
+  const ampm = h < 12 ? "am" : "pm";
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}${m ? `:${mStr}` : ""}${ampm}`;
 }
